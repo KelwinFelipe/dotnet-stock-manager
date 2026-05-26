@@ -1,6 +1,6 @@
 # Gerenciador de Estoque (Estoque Manager)
 
-Um sistema robusto em linha de comando (CLI) desenvolvido em **C#** e baseado na plataforma **.NET 8**, projetado para o controle eficiente de estoques de produtos. Este projeto foi estruturado seguindo boas práticas de Engenharia de Software, utilizando o padrão de arquitetura em camadas para assegurar a separação clara de responsabilidades, alta manutenibilidade e escalabilidade.
+Um sistema robusto em linha de comando (CLI) desenvolvido em **C#** e baseado na plataforma **.NET 10**, projetado para o controle eficiente de estoques de produtos. Este projeto foi estruturado seguindo boas práticas de Engenharia de Software, utilizando o padrão de arquitetura em camadas para assegurar a separação clara de responsabilidades, alta manutenibilidade e escalabilidade.
 
 Toda a lógica interna de variáveis, propriedades, métodos e classes foi nomeada em **inglês**, enquanto a interface do console de apresentação e interações com o usuário foram mantidas em **português**. Toda a codebase está amplamente documentada e comentada.
 
@@ -8,8 +8,8 @@ Toda a lógica interna de variáveis, propriedades, métodos e classes foi nomea
 
 ## 🚀 Tecnologias Utilizadas
 
-- **Linguagem:** C# 12 (com nomenclaturas internas em inglês)
-- **Framework:** .NET 8.0 SDK
+- **Linguagem:** C# 12 
+- **Framework:** .NET 10.0 SDK
 - **Persistência:** Serialização Local em JSON (`System.Text.Json` salvando em `products.json`)
 - **Arquitetura:** Camadas Físicas Separadas
 
@@ -55,7 +55,7 @@ estoque-manager/
 ## ⚙️ Como Executar o Projeto
 
 ### Pré-requisitos:
-- Instalar o [.NET 8.0 SDK](https://dotnet.microsoft.com/download) em sua máquina.
+- Instalar o [.NET 10.0 SDK](https://dotnet.microsoft.com/download) em sua máquina.
 
 ### Passos para compilação e execução:
 

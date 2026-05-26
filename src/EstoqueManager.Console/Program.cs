@@ -28,7 +28,7 @@ while (isRunning)
     switch (option)
     {
         case "1":
-            AddProductMenu();
+            await AddProductMenuAsync();
             break;
 
         case "2":
@@ -40,11 +40,11 @@ while (isRunning)
             break;
 
         case "4":
-            UpdateStockMenu();
+            await UpdateStockMenuAsync();
             break;
 
         case "5":
-            RemoveProductMenu();
+            await RemoveProductMenuAsync();
             break;
 
         case "0":
@@ -62,9 +62,9 @@ while (isRunning)
 }
 
 /// <summary>
-/// Exibe a tela de cadastro e realiza as validações para inserção de um novo produto.
+/// Exibe a tela de cadastro e realiza as validações para inserção de um novo produto de forma assíncrona.
 /// </summary>
-void AddProductMenu()
+async Task AddProductMenuAsync()
 {
     Console.Clear();
     Console.ForegroundColor = ConsoleColor.Cyan;
@@ -72,50 +72,67 @@ void AddProductMenu()
     Console.ResetColor();
 
     Console.Write("Nome do produto: ");
-    var name = Console.ReadLine()?.Trim();
-    if (string.IsNullOrWhiteSpace(name))
-    {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("\nErro: O nome do produto não pode ser vazio.");
-        Console.ResetColor();
-        Console.ReadKey();
-        return;
-    }
+    var name = Console.ReadLine()?.Trim() ?? string.Empty;
 
     Console.Write("Preço unitário (R$): ");
-    if (!decimal.TryParse(Console.ReadLine(), out decimal price) || price < 0)
+    if (!decimal.TryParse(Console.ReadLine(), out decimal price))
     {
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("\nErro: Preço inválido.");
+        Console.WriteLine("\nErro: Preço em formato numérico inválido.");
         Console.ResetColor();
         Console.ReadKey();
         return;
     }
 
     Console.Write("Quantidade inicial: ");
-    if (!int.TryParse(Console.ReadLine(), out int quantity) || quantity < 0)
+    if (!int.TryParse(Console.ReadLine(), out int quantity))
     {
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("\nErro: Quantidade inválida.");
+        Console.WriteLine("\nErro: Quantidade em formato numérico inválido.");
         Console.ResetColor();
         Console.ReadKey();
         return;
     }
 
-    // Instancia o objeto do produto com atributos sanitizados
-    var newProduct = new Product
+    try
     {
-        Name = name,
-        Price = price,
-        Quantity = quantity
-    };
+        // Instancia o objeto do produto. Qualquer violação de regra de negócio disparará exceções de domínio.
+        var newProduct = new Product(name, price, quantity);
 
-    // Adiciona o produto na camada de persistência
-    stock.Add(newProduct);
+        // Adiciona o produto de forma assíncrona no serviço, que verificará duplicidade
+        await stock.AddAsync(newProduct);
 
-    Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine($"\nProduto '{name}' cadastrado com sucesso!");
-    Console.ResetColor();
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"\nProduto '{name}' cadastrado com sucesso!");
+        Console.ResetColor();
+    }
+    catch (ArgumentOutOfRangeException ex)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"\nErro de Validação: {ex.Message}");
+        Console.ResetColor();
+    }
+    catch (ArgumentException ex)
+    {
+        // Captura violações específicas de dados nulos/vazios ou formatos inválidos do domínio
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"\nErro de Validação: {ex.Message}");
+        Console.ResetColor();
+    }
+    catch (InvalidOperationException ex)
+    {
+        // Captura erro de duplicidade lançado pela regra de negócio do serviço
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"\nErro de Negócio: {ex.Message}");
+        Console.ResetColor();
+    }
+    catch (Exception ex)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"\nErro Inesperado: {ex.Message}");
+        Console.ResetColor();
+    }
+
     Console.WriteLine("\nPressione qualquer tecla para voltar ao menu.");
     Console.ReadKey();
 }
@@ -143,7 +160,7 @@ void ListProductsMenu()
         Console.WriteLine(new string('-', 90));
         Console.ResetColor();
 
-        // Renderiza cada produto com formatação apropriada
+        // Renderiza cada produto com formatação de moeda local (C2)
         foreach (var p in products)
         {
             Console.WriteLine("{0,-38} | {1,-20} | {2,12:C2} | {3,10}", p.Id, p.Name, p.Price, p.Quantity);
@@ -155,7 +172,7 @@ void ListProductsMenu()
 }
 
 /// <summary>
-/// Permite o usuário buscar produtos pelo nome exato ou aproximação parcial de caracteres.
+/// Permite o usuário buscar produtos por aproximação parcial de caracteres.
 /// </summary>
 void SearchProductMenu()
 {
@@ -176,7 +193,7 @@ void SearchProductMenu()
         return;
     }
 
-    // Busca itens cujo nome contenha o termo digitado
+    // Busca itens de maneira case-insensitive
     var foundProducts = stock.List()
         .Where(p => p.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
         .ToList();
@@ -207,9 +224,9 @@ void SearchProductMenu()
 }
 
 /// <summary>
-/// Executa a rotina para atualizar a quantidade disponível em estoque de um produto através do Guid.
+/// Executa a rotina assíncrona para atualizar a quantidade em estoque de um produto.
 /// </summary>
-void UpdateStockMenu()
+async Task UpdateStockMenuAsync()
 {
     Console.Clear();
     Console.ForegroundColor = ConsoleColor.Cyan;
@@ -239,29 +256,46 @@ void UpdateStockMenu()
     Console.WriteLine($"Produto selecionado: {product.Name}");
     Console.WriteLine($"Quantidade atual: {product.Quantity}");
     Console.Write("\nDigite a nova quantidade: ");
-    if (!int.TryParse(Console.ReadLine(), out int newQuantity) || newQuantity < 0)
+    if (!int.TryParse(Console.ReadLine(), out int newQuantity))
     {
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("\nErro: Quantidade inválida.");
+        Console.WriteLine("\nErro: Formato numérico de quantidade inválido.");
         Console.ResetColor();
         Console.ReadKey();
         return;
     }
 
-    // Grava as novas alterações
-    stock.UpdateQuantity(id, newQuantity);
+    try
+    {
+        // Persiste as alterações no banco de dados e registra no log assincronamente.
+        // O método no serviço também efetuará a alteração garantindo consistência.
+        await stock.UpdateQuantityAsync(id, newQuantity);
 
-    Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine("\nEstoque atualizado com sucesso!");
-    Console.ResetColor();
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("\nEstoque atualizado com sucesso!");
+        Console.ResetColor();
+    }
+    catch (ArgumentOutOfRangeException ex)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"\nErro de Validação: {ex.Message}");
+        Console.ResetColor();
+    }
+    catch (Exception ex)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"\nErro ao atualizar estoque: {ex.Message}");
+        Console.ResetColor();
+    }
+
     Console.WriteLine("\nPressione qualquer tecla para voltar ao menu.");
     Console.ReadKey();
 }
 
 /// <summary>
-/// Exclui um produto do estoque permanentemente após a validação de segurança.
+/// Exclui um produto do estoque permanentemente por ID de forma assíncrona após confirmação.
 /// </summary>
-void RemoveProductMenu()
+async Task RemoveProductMenuAsync()
 {
     Console.Clear();
     Console.ForegroundColor = ConsoleColor.Cyan;
@@ -295,7 +329,7 @@ void RemoveProductMenu()
 
     if (confirmation?.Equals("S", StringComparison.OrdinalIgnoreCase) == true)
     {
-        stock.Remove(id);
+        await stock.RemoveAsync(id);
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("\nProduto removido com sucesso!");
         Console.ResetColor();

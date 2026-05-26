@@ -4,7 +4,7 @@ using EstoqueManager.Core;
 namespace EstoqueManager.Data;
 
 /// <summary>
-/// Serviço responsável pela persistência e manipulação da coleção de produtos em estoque.
+/// Serviço responsável pela persistência, auditoria e manipulação assíncrona da coleção de produtos.
 /// </summary>
 public class StockService
 {
@@ -15,7 +15,7 @@ public class StockService
     private List<Product> _products = [];
 
     /// <summary>
-    /// Construtor padrão que inicializa o serviço carregando os dados persistidos.
+    /// Construtor que inicializa o serviço carregando o histórico de dados existentes de forma síncrona.
     /// </summary>
     public StockService()
     {
@@ -23,13 +23,23 @@ public class StockService
     }
 
     /// <summary>
-    /// Adiciona um novo produto ao estoque e persiste as alterações.
+    /// Adiciona um novo produto ao estoque de forma assíncrona, prevenindo duplicidade de nomes.
     /// </summary>
     /// <param name="product">Instância do produto a ser adicionada.</param>
-    public void Add(Product product)
+    /// <exception cref="InvalidOperationException">Lançada caso um produto com o mesmo nome já exista.</exception>
+    public async Task AddAsync(Product product)
     {
+        // Validação de unicidade sem distinção de maiúsculas/minúsculas
+        if (_products.Any(p => p.Name.Equals(product.Name, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException($"Já existe um produto cadastrado com o nome '{product.Name}'.");
+        }
+
         _products.Add(product);
-        SaveData();
+        await SaveDataAsync();
+        
+        // Trilha de auditoria assíncrona
+        await LogService.LogAsync($"PRODUTO ADICIONADO - ID: {product.Id} | Nome: {product.Name} | Preço: {product.Price:C2} | Qtd Inicial: {product.Quantity}");
     }
 
     /// <summary>
@@ -64,35 +74,42 @@ public class StockService
     }
 
     /// <summary>
-    /// Atualiza a quantidade disponível em estoque de um determinado produto.
+    /// Atualiza a quantidade disponível em estoque de um determinado produto de forma assíncrona.
     /// </summary>
     /// <param name="id">ID do produto.</param>
     /// <param name="newQuantity">Nova quantidade a ser atribuída.</param>
     /// <returns>True se atualizado com sucesso; False caso contrário.</returns>
-    public bool UpdateQuantity(Guid id, int newQuantity)
+    public async Task<bool> UpdateQuantityAsync(Guid id, int newQuantity)
     {
         var product = GetById(id);
         if (product == null)
             return false;
 
+        int oldQuantity = product.Quantity;
         product.Quantity = newQuantity;
-        SaveData();
+        
+        await SaveDataAsync();
+        await LogService.LogAsync($"ESTOQUE ATUALIZADO - ID: {product.Id} | Nome: {product.Name} | Qtd: {oldQuantity} -> {newQuantity}");
+        
         return true;
     }
 
     /// <summary>
-    /// Remove um produto permanentemente do estoque.
+    /// Remove um produto permanentemente do estoque e registra a ação no log de auditoria.
     /// </summary>
     /// <param name="id">ID do produto a ser deletado.</param>
     /// <returns>True se removido com sucesso; False caso contrário.</returns>
-    public bool Remove(Guid id)
+    public async Task<bool> RemoveAsync(Guid id)
     {
         var product = GetById(id);
         if (product == null)
             return false;
 
         _products.Remove(product);
-        SaveData();
+        
+        await SaveDataAsync();
+        await LogService.LogAsync($"PRODUTO REMOVIDO - ID: {product.Id} | Nome: {product.Name}");
+        
         return true;
     }
 
@@ -111,21 +128,20 @@ public class StockService
         }
         catch
         {
-            // Em caso de falha de leitura, inicializa uma coleção vazia
             _products = [];
         }
     }
 
     /// <summary>
-    /// Persiste as informações da coleção em memória para o arquivo local JSON.
+    /// Persiste as informações da coleção em memória para o arquivo local JSON de forma assíncrona.
     /// </summary>
-    private void SaveData()
+    private async Task SaveDataAsync()
     {
         try
         {
             var options = new JsonSerializerOptions { WriteIndented = true };
             var json = JsonSerializer.Serialize(_products, options);
-            File.WriteAllText(_filePath, json);
+            await File.WriteAllTextAsync(_filePath, json);
         }
         catch (Exception ex)
         {

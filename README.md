@@ -1,54 +1,50 @@
 # Gerenciador de Estoque (Estoque Manager)
 
-Um sistema robusto em linha de comando (CLI) desenvolvido em **C#** e baseado na plataforma **.NET 10**, projetado para o controle eficiente de estoques de produtos. Este projeto foi estruturado seguindo boas práticas de Engenharia de Software, utilizando o padrão de arquitetura em camadas para assegurar a separação clara de responsabilidades, alta manutenibilidade e escalabilidade.
+Um sistema simples que expõe uma REST API desenvolvida em **C#** sobre a plataforma **.NET 10**, focado no controle de estoques de produtos.
 
-Toda a lógica interna de variáveis, propriedades, métodos e classes foi nomeada em **inglês**, enquanto a interface do console de apresentação e interações com o usuário foram mantidas em **português**. Toda a codebase está amplamente documentada e comentada.
+
 
 ---
 
 ## 🚀 Tecnologias Utilizadas
 
-- **Linguagem:** C# 12 
+- **Linguagem:** C#
 - **Framework:** .NET 10.0 SDK
-- **Persistência:** Serialização Local em JSON (`System.Text.Json` salvando em `products.json`)
-- **Arquitetura:** Camadas Físicas Separadas
+- **Persistência:** Serialização local em JSON (`System.Text.Json`) armazenada em `products.json`
+- **Arquitetura:** Camadas físicas separadas (Core, Data, Web)
 
 ---
 
-## 🏛️ Estrutura Arquitetural
+## 🏛️ Estrutura de Projeto
 
-A solução está dividida em três projetos independentes, garantindo baixo acoplamento:
-
-```txt
+```
 estoque-manager/
 │
 ├── src/
-│   ├── EstoqueManager.Console/    # Camada de Apresentação (Interface CLI e Entrada do Usuário)
-│   │
-│   ├── EstoqueManager.Core/       # Camada de Domínio (Entidade Product.cs e Regras de Negócio)
-│   │
-│   └── EstoqueManager.Data/       # Camada de Acesso a Dados (Serviço de Persistência StockService.cs)
+│   ├── EstoqueManager.Web/    # Camada de apresentação (REST API)
+│   ├── EstoqueManager.Core/       # Camada de domínio (entidades Product, Category)
+│   └── EstoqueManager.Data/       # Camada de acesso a dados (StockService, CategoryService)
 │
-├── README.md                      # Documentação do Projeto
-├── .gitignore                     # Configuração de Arquivos Ignorados no Controle de Versão
-└── estoque-manager.sln            # Solução C# para Integração dos Módulos
+├── README.md                     # Documentação do projeto
+├── .gitignore                    # Arquivos a serem ignorados no Git
+└── estoque-manager.sln            # Solução C# que reúne os módulos
 ```
 
-### Detalhamento das Camadas:
-1. **EstoqueManager.Core**: Contém o modelo de domínio principal `Product.cs` com atributos essenciais em inglês (ID auto-gerado, `Name`, `Price`, `Quantity` e `CreatedAt`).
-2. **EstoqueManager.Data**: Implementa `StockService.cs`, responsável por controlar e orquestrar as manipulações na coleção de dados de estoque, incluindo salvamento automático síncrono em `products.json`.
-3. **EstoqueManager.Console**: Define a interface de controle do usuário em `Program.cs`, com menus coloridos interativos e proteção contra dados de entrada inválidos para mitigar quebras na execução (crashes).
+### Detalhamento das Camadas
+1. **EstoqueManager.Core** – Contém as entidades de domínio `Product` e `Category`, incluindo propriedades como `CreatedAt`, `UpdatedAt` e `CategoryId`.
+2. **EstoqueManager.Data** – Implementa `StockService` e `CategoryService`, responsáveis pela persistência, auditoria e lógica de negócio (CRUD completo, validações e controle de histórico).
+3. **EstoqueManager.Web** – Exposição de uma REST API com endpoints para gerenciamento de estoque, utilizando ASP.NET Core.
 
 ---
 
 ## ✨ Funcionalidades Implementadas
 
-- [x] **Cadastro de Produto**: Registro completo de itens informando nome, preço unitário e quantidade inicial.
-- [x] **Listagem de Estoque**: Exibição tabular detalhada de todos os itens cadastrados com seus respectivos códigos únicos (GUID).
-- [x] **Busca por Nome**: Pesquisa flexível e case-insensitive (pesquisa por aproximação textual).
-- [x] **Atualização de Estoque**: Alteração dinâmica da quantidade disponível de um determinado item informando seu ID exato.
-- [x] **Remoção de Produto**: Exclusão de itens com confirmação de segurança para evitar exclusões acidentais.
-- [x] **Persistência Não-Volátil (JSON)**: Salvamento automático de todas as operações em arquivo local `products.json`.
+- **Cadastro de Produto** – Permite registrar novos itens, informando nome, preço e quantidade inicial de forma simples e rápida.
+- **Listagem de Estoque** – Exibe, em uma tabela agradável, todos os produtos cadastrados com seus GUIDs, facilitando a visualização e o controle.
+- **Busca por Nome** – Encontre produtos digitando parte ou a totalidade do nome, sem se preocupar com maiúsculas/minúsculas.
+- **Atualização de Estoque** – Ajuste a quantidade disponível de um produto específico, utilizando seu identificador único.
+- **Remoção de Produto** – Exclua itens com uma confirmação segura, evitando exclusões acidentais.
+- **Persistência Não‑Volátil (JSON)** – Todos os dados são salvos automaticamente em `products.json`, garantindo que nenhuma informação seja perdida entre sessões.
 
 ---
 
@@ -64,7 +60,7 @@ estoque-manager/
    ```bash
    dotnet build
    ```
-3. Execute o projeto console de apresentação:
+3. Execute a API REST:
    ```bash
-   dotnet run --project src/EstoqueManager.Console/EstoqueManager.Console.csproj
+   dotnet run --project src/EstoqueManager.Web/EstoqueManager.Web.csproj
    ```

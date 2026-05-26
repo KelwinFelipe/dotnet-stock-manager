@@ -7,11 +7,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EstoqueManager.Core", "src\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EstoqueManager.Data", "src\EstoqueManager.Data\EstoqueManager.Data.csproj", "{4D8B9B7E-7F8C-4D9D-9222-ED9F1204B67E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EstoqueManager.Console", "src\EstoqueManager.Console\EstoqueManager.Console.csproj", "{5F9C0C8F-8F9D-4EAE-9333-FEAE1305C78F}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EstoqueManager.Web", "src\EstoqueManager.Web\EstoqueManager.Web.csproj", "{2B5BFEFB-5E1F-4F44-826C-4B63C6BE876D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EstoqueManager.ConsoleClient", "src\EstoqueManager.ConsoleClient\EstoqueManager.ConsoleClient.csproj", "{54B94B01-A837-4155-918A-FD5E08CFB66F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -47,18 +47,6 @@ Global
 		{4D8B9B7E-7F8C-4D9D-9222-ED9F1204B67E}.Release|x64.Build.0 = Release|Any CPU
 		{4D8B9B7E-7F8C-4D9D-9222-ED9F1204B67E}.Release|x86.ActiveCfg = Release|Any CPU
 		{4D8B9B7E-7F8C-4D9D-9222-ED9F1204B67E}.Release|x86.Build.0 = Release|Any CPU
-		{5F9C0C8F-8F9D-4EAE-9333-FEAE1305C78F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5F9C0C8F-8F9D-4EAE-9333-FEAE1305C78F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5F9C0C8F-8F9D-4EAE-9333-FEAE1305C78F}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{5F9C0C8F-8F9D-4EAE-9333-FEAE1305C78F}.Debug|x64.Build.0 = Debug|Any CPU
-		{5F9C0C8F-8F9D-4EAE-9333-FEAE1305C78F}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{5F9C0C8F-8F9D-4EAE-9333-FEAE1305C78F}.Debug|x86.Build.0 = Debug|Any CPU
-		{5F9C0C8F-8F9D-4EAE-9333-FEAE1305C78F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5F9C0C8F-8F9D-4EAE-9333-FEAE1305C78F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5F9C0C8F-8F9D-4EAE-9333-FEAE1305C78F}.Release|x64.ActiveCfg = Release|Any CPU
-		{5F9C0C8F-8F9D-4EAE-9333-FEAE1305C78F}.Release|x64.Build.0 = Release|Any CPU
-		{5F9C0C8F-8F9D-4EAE-9333-FEAE1305C78F}.Release|x86.ActiveCfg = Release|Any CPU
-		{5F9C0C8F-8F9D-4EAE-9333-FEAE1305C78F}.Release|x86.Build.0 = Release|Any CPU
 		{2B5BFEFB-5E1F-4F44-826C-4B63C6BE876D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{2B5BFEFB-5E1F-4F44-826C-4B63C6BE876D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2B5BFEFB-5E1F-4F44-826C-4B63C6BE876D}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -71,11 +59,24 @@ Global
 		{2B5BFEFB-5E1F-4F44-826C-4B63C6BE876D}.Release|x64.Build.0 = Release|Any CPU
 		{2B5BFEFB-5E1F-4F44-826C-4B63C6BE876D}.Release|x86.ActiveCfg = Release|Any CPU
 		{2B5BFEFB-5E1F-4F44-826C-4B63C6BE876D}.Release|x86.Build.0 = Release|Any CPU
+		{54B94B01-A837-4155-918A-FD5E08CFB66F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{54B94B01-A837-4155-918A-FD5E08CFB66F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{54B94B01-A837-4155-918A-FD5E08CFB66F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{54B94B01-A837-4155-918A-FD5E08CFB66F}.Debug|x64.Build.0 = Debug|Any CPU
+		{54B94B01-A837-4155-918A-FD5E08CFB66F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{54B94B01-A837-4155-918A-FD5E08CFB66F}.Debug|x86.Build.0 = Debug|Any CPU
+		{54B94B01-A837-4155-918A-FD5E08CFB66F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{54B94B01-A837-4155-918A-FD5E08CFB66F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{54B94B01-A837-4155-918A-FD5E08CFB66F}.Release|x64.ActiveCfg = Release|Any CPU
+		{54B94B01-A837-4155-918A-FD5E08CFB66F}.Release|x64.Build.0 = Release|Any CPU
+		{54B94B01-A837-4155-918A-FD5E08CFB66F}.Release|x86.ActiveCfg = Release|Any CPU
+		{54B94B01-A837-4155-918A-FD5E08CFB66F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{2B5BFEFB-5E1F-4F44-826C-4B63C6BE876D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{54B94B01-A837-4155-918A-FD5E08CFB66F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

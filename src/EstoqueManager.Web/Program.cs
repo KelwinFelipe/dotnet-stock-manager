@@ -2,6 +2,8 @@ using EstoqueManager.Core;
 using EstoqueManager.Data;
 using Microsoft.AspNetCore.Mvc;
 
+using EstoqueManager.Export;
+using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // Configuração de CORS para permitir consumo do frontend no mesmo host
@@ -18,6 +20,7 @@ builder.Services.AddCors(options =>
 // Registra os serviços como Singleton, pois eles mantêm estado em memória e acessam arquivo
 builder.Services.AddSingleton<StockService>();
 builder.Services.AddSingleton<CategoryService>();
+builder.Services.AddSingleton<ExportService>();
 
 var app = builder.Build();
 
@@ -126,6 +129,19 @@ api.MapPut("/{id:guid}", async (Guid id, ProductInputModel model, StockService s
     {
         return Results.Problem(ex.Message);
     }
+});
+// Export endpoints
+api.MapGet("/export/xml", async (StockService stock, ExportService export) =>
+{
+    var xml = await export.GenerateXmlAsync(stock.List());
+    var bytes = Encoding.UTF8.GetBytes(xml);
+    return Results.File(bytes, "application/xml", "products.xml");
+});
+
+api.MapGet("/export/pdf", async (StockService stock, ExportService export) =>
+{
+    var pdfBytes = await export.GeneratePdfAsync(stock.List());
+    return Results.File(pdfBytes, "application/pdf", "products.pdf");
 });
 
 // Configura o mapeamento de requisições de Categorias

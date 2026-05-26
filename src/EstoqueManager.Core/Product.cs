@@ -65,12 +65,13 @@ public class Product
     public DateTime CreatedAt { get; init; } = DateTime.Now;
 
     /// <summary>
-    /// Data e hora em que o produto foi modificado pela última vez.
+    /// Timestamp da última modificação do produto. 
+    /// Mantido como <c>null</c> até que o produto seja editado.
     /// </summary>
     public DateTime? UpdatedAt { get; set; }
 
     /// <summary>
-    /// ID da Categoria a qual este produto pertence (Opcional).
+    /// Identificador da categoria associada ao produto (pode ser <c>null</c> quando não houver categoria).
     /// </summary>
     public Guid? CategoryId { get; set; }
 

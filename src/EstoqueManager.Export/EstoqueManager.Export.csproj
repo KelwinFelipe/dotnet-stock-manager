@@ -1,15 +1,14 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\EstoqueManager.Core\EstoqueManager.Core.csproj" />
-    <ProjectReference Include="..\EstoqueManager.Data\EstoqueManager.Data.csproj" />
-    <ProjectReference Include="..\EstoqueManager.Export\EstoqueManager.Export.csproj" />
+    <PackageReference Include="QuestPDF" Version="2026.5.0" />
   </ItemGroup>
 
 </Project>

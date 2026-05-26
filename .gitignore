@@ -1,0 +1,23 @@
+## Visual Studio Build Outputs
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+
+## Visual Studio Cache/Files
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+
+## Rider/Resharper
+.idea/
+*.user
+
+## User files
+produtos.json

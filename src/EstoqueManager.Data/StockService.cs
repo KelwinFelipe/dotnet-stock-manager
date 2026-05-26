@@ -95,6 +95,34 @@ public class StockService
     }
 
     /// <summary>
+    /// Atualiza todos os dados de um produto existente.
+    /// </summary>
+    public async Task<bool> UpdateProductAsync(Guid id, Product updatedProduct)
+    {
+        var product = GetById(id);
+        if (product == null)
+            return false;
+
+        // Validação de colisão de nome para edição
+        if (!product.Name.Equals(updatedProduct.Name, StringComparison.OrdinalIgnoreCase) && 
+            _products.Any(p => p.Name.Equals(updatedProduct.Name, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException($"Já existe um produto cadastrado com o nome '{updatedProduct.Name}'.");
+        }
+
+        product.Name = updatedProduct.Name;
+        product.Price = updatedProduct.Price;
+        product.Quantity = updatedProduct.Quantity;
+        product.CategoryId = updatedProduct.CategoryId;
+        product.UpdatedAt = DateTime.Now;
+
+        await SaveDataAsync();
+        await LogService.LogAsync($"PRODUTO ATUALIZADO (COMPLETO) - ID: {product.Id} | Nome: {product.Name}");
+
+        return true;
+    }
+
+    /// <summary>
     /// Remove um produto permanentemente do estoque e registra a ação no log de auditoria.
     /// </summary>
     /// <param name="id">ID do produto a ser deletado.</param>

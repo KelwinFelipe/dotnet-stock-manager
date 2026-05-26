@@ -15,8 +15,9 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Registra o StockService como Singleton, pois ele mantém estado em memória e acessa arquivo
+// Registra os serviços como Singleton, pois eles mantêm estado em memória e acessam arquivo
 builder.Services.AddSingleton<StockService>();
+builder.Services.AddSingleton<CategoryService>();
 
 var app = builder.Build();
 
@@ -56,7 +57,10 @@ api.MapPost("/", async (ProductInputModel model, StockService stock) =>
 {
     try
     {
-        var product = new Product(model.Name, model.Price, model.Quantity);
+        var product = new Product(model.Name, model.Price, model.Quantity)
+        {
+            CategoryId = model.CategoryId
+        };
         await stock.AddAsync(product);
         return Results.Created($"/api/products/{product.Id}", product);
     }
@@ -95,6 +99,90 @@ api.MapDelete("/{id:guid}", async (Guid id, StockService stock) =>
     return Results.Ok();
 });
 
+api.MapPut("/{id:guid}", async (Guid id, ProductInputModel model, StockService stock) =>
+{
+    try
+    {
+        var product = new Product(model.Name, model.Price, model.Quantity)
+        {
+            CategoryId = model.CategoryId
+        };
+        
+        var success = await stock.UpdateProductAsync(id, product);
+        if (!success)
+            return Results.NotFound();
+
+        return Results.Ok();
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.Conflict(new { message = ex.Message });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
+});
+
+// Configura o mapeamento de requisições de Categorias
+var catApi = app.MapGroup("/api/categories");
+
+catApi.MapGet("/", (CategoryService catService) =>
+{
+    return Results.Ok(catService.List());
+});
+
+catApi.MapGet("/{id:guid}", (Guid id, CategoryService catService) =>
+{
+    var category = catService.GetById(id);
+    return category is not null ? Results.Ok(category) : Results.NotFound();
+});
+
+catApi.MapPost("/", async (CategoryInputModel model, CategoryService catService) =>
+{
+    try
+    {
+        var category = new Category(model.Name, model.Description);
+        await catService.AddAsync(category);
+        return Results.Created($"/api/categories/{category.Id}", category);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.Conflict(new { message = ex.Message });
+    }
+});
+
+catApi.MapPut("/{id:guid}", async (Guid id, CategoryInputModel model, CategoryService catService) =>
+{
+    try
+    {
+        var success = await catService.UpdateAsync(id, model.Name, model.Description);
+        if (!success)
+            return Results.NotFound();
+        return Results.Ok();
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.Conflict(new { message = ex.Message });
+    }
+});
+
+catApi.MapDelete("/{id:guid}", async (Guid id, CategoryService catService) =>
+{
+    var success = await catService.RemoveAsync(id);
+    if (!success)
+        return Results.NotFound();
+    return Results.Ok();
+});
+
 // Fallback para SPA - qualquer rota não mapeada para arquivo físico cai no index.html
 app.MapFallbackToFile("index.html");
 
@@ -106,4 +194,11 @@ public class ProductInputModel
     public string Name { get; set; } = string.Empty;
     public decimal Price { get; set; }
     public int Quantity { get; set; }
+    public Guid? CategoryId { get; set; }
+}
+
+public class CategoryInputModel
+{
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
 }

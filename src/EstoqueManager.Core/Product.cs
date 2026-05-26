@@ -65,6 +65,16 @@ public class Product
     public DateTime CreatedAt { get; init; } = DateTime.Now;
 
     /// <summary>
+    /// Data e hora em que o produto foi modificado pela última vez.
+    /// </summary>
+    public DateTime? UpdatedAt { get; set; }
+
+    /// <summary>
+    /// ID da Categoria a qual este produto pertence (Opcional).
+    /// </summary>
+    public Guid? CategoryId { get; set; }
+
+    /// <summary>
     /// Construtor vazio necessário para processos de desserialização (System.Text.Json).
     /// </summary>
     public Product() { }

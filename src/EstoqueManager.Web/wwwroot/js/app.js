@@ -1,8 +1,15 @@
 const API_BASE_URL = '/api/products';
+const CAT_API_URL = '/api/categories';
 
 // Formatação de Moeda BRL
 const formatCurrency = (value) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+};
+
+const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit' });
 };
 
 // API Service
@@ -28,13 +35,26 @@ class ApiService {
         return response.json();
     }
 
+    static async updateProduct(id, product) {
+        const response = await fetch(`${API_BASE_URL}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(product)
+        });
+        
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
+            throw new Error(error.message || 'Falha ao atualizar produto');
+        }
+        return true;
+    }
+
     static async updateQuantity(id, quantity) {
         const response = await fetch(`${API_BASE_URL}/${id}/quantity`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(quantity) // Minimal API espera o valor direto no body com [FromBody] se for um int. Caso não funcione, será ajustado.
+            body: JSON.stringify(quantity)
         });
-        
         if (!response.ok) throw new Error('Falha ao atualizar quantidade');
         return true;
     }
@@ -47,15 +67,42 @@ class ApiService {
         if (!response.ok) throw new Error('Falha ao remover produto');
         return true;
     }
+
+    // --- Categorias ---
+    static async getCategories() {
+        const response = await fetch(CAT_API_URL);
+        if (!response.ok) throw new Error('Falha ao buscar categorias');
+        return response.json();
+    }
+
+    static async addCategory(name) {
+        const response = await fetch(CAT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, description: '' })
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
+            throw new Error(error.message || 'Falha ao cadastrar categoria');
+        }
+        return response.json();
+    }
+
+    static async deleteCategory(id) {
+        const response = await fetch(`${CAT_API_URL}/${id}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Falha ao remover categoria');
+        return true;
+    }
 }
 
 // UI Manager
 class UIManager {
     constructor() {
         this.products = [];
+        this.categories = [];
         this.initElements();
         this.bindEvents();
-        this.loadProducts();
+        this.loadInitialData();
     }
 
     initElements() {
@@ -74,10 +121,13 @@ class UIManager {
         // Modals
         this.productModal = document.getElementById('product-modal');
         this.quantityModal = document.getElementById('quantity-modal');
+        this.categoryModal = document.getElementById('category-modal');
         
         // Forms
         this.productForm = document.getElementById('product-form');
         this.quantityForm = document.getElementById('quantity-form');
+        this.productCategorySelect = document.getElementById('product-category');
+        this.categoriesTbody = document.getElementById('categories-tbody');
     }
 
     bindEvents() {
@@ -88,10 +138,17 @@ class UIManager {
             debounceTimer = setTimeout(() => this.loadProducts(e.target.value), 300);
         });
 
-        // New Product
+        // Modals Opening
         document.getElementById('btn-new-product').addEventListener('click', () => {
+            document.getElementById('modal-title').textContent = 'Cadastrar Produto';
+            document.getElementById('edit-product-id').value = '';
             this.productForm.reset();
             this.productModal.classList.remove('hidden');
+        });
+
+        document.getElementById('btn-manage-categories').addEventListener('click', () => {
+            this.categoryModal.classList.remove('hidden');
+            this.renderCategoriesList();
         });
 
         // Close Modals
@@ -101,18 +158,47 @@ class UIManager {
         document.getElementById('btn-close-quantity-modal').addEventListener('click', () => this.quantityModal.classList.add('hidden'));
         document.getElementById('btn-cancel-quantity-modal').addEventListener('click', () => this.quantityModal.classList.add('hidden'));
 
+        document.getElementById('btn-close-category-modal').addEventListener('click', () => this.categoryModal.classList.add('hidden'));
+        document.getElementById('btn-done-category-modal').addEventListener('click', () => this.categoryModal.classList.add('hidden'));
+
+        // Category Add
+        document.getElementById('btn-add-category').addEventListener('click', async () => {
+            const input = document.getElementById('new-category-name');
+            const name = input.value.trim();
+            if (!name) return;
+
+            try {
+                await ApiService.addCategory(name);
+                input.value = '';
+                this.showToast('Categoria adicionada!', 'success');
+                await this.loadCategories();
+                this.renderCategoriesList();
+            } catch (err) {
+                this.showToast(err.message, 'error');
+            }
+        });
+
         // Forms Submit
         this.productForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const id = document.getElementById('edit-product-id').value;
+            const categoryId = this.productCategorySelect.value;
+            
             const product = {
                 name: document.getElementById('product-name').value,
                 price: parseFloat(document.getElementById('product-price').value),
-                quantity: parseInt(document.getElementById('product-quantity').value, 10)
+                quantity: parseInt(document.getElementById('product-quantity').value, 10),
+                categoryId: categoryId || null
             };
             
             try {
-                await ApiService.addProduct(product);
-                this.showToast('Produto cadastrado com sucesso!', 'success');
+                if (id) {
+                    await ApiService.updateProduct(id, product);
+                    this.showToast('Produto atualizado com sucesso!', 'success');
+                } else {
+                    await ApiService.addProduct(product);
+                    this.showToast('Produto cadastrado com sucesso!', 'success');
+                }
                 this.productModal.classList.add('hidden');
                 this.loadProducts(this.searchInput.value);
             } catch (error) {
@@ -134,6 +220,58 @@ class UIManager {
                 this.showToast(error.message, 'error');
             }
         });
+    }
+
+    async loadInitialData() {
+        await this.loadCategories();
+        await this.loadProducts();
+    }
+
+    async loadCategories() {
+        try {
+            this.categories = await ApiService.getCategories();
+            this.updateCategorySelect();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    updateCategorySelect() {
+        this.productCategorySelect.innerHTML = '<option value="">Sem Categoria</option>';
+        this.categories.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name;
+            this.productCategorySelect.appendChild(opt);
+        });
+    }
+
+    renderCategoriesList() {
+        this.categoriesTbody.innerHTML = '';
+        this.categories.forEach(c => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${c.name}</td>
+                <td style="text-align: center;">
+                    <button class="btn-icon delete" onclick="app.deleteCategory('${c.id}')" title="Remover">🗑️</button>
+                </td>
+            `;
+            this.categoriesTbody.appendChild(tr);
+        });
+    }
+
+    async deleteCategory(id) {
+        if(confirm('Remover esta categoria? Produtos associados ficarão sem categoria.')) {
+            try {
+                await ApiService.deleteCategory(id);
+                this.showToast('Categoria removida.', 'success');
+                await this.loadCategories();
+                this.renderCategoriesList();
+                this.loadProducts(this.searchInput.value); // refresh table
+            } catch (e) {
+                this.showToast(e.message, 'error');
+            }
+        }
     }
 
     async loadProducts(searchQuery = '') {
@@ -176,18 +314,37 @@ class UIManager {
                 if (product.quantity === 0) stockBadge = '<span class="badge badge-out">Sem Estoque</span>';
                 else if (product.quantity < 10) stockBadge = '<span class="badge badge-low">Baixo</span>';
                 
+                const catName = product.categoryId ? (this.categories.find(c => c.id === product.categoryId)?.name || '-') : '-';
+                const dataDisplay = product.updatedAt ? `<div style="font-size:0.8rem;color:var(--text-muted)">Atualizado:<br>${formatDate(product.updatedAt)}</div>` : `<div style="font-size:0.8rem;color:var(--text-muted)">Criado:<br>${formatDate(product.createdAt)}</div>`;
+
                 tr.innerHTML = `
-                    <td style="font-size: 0.8rem; color: var(--text-muted)">${product.id.split('-')[0]}...</td>
+                    <td style="font-size: 0.8rem; color: var(--text-muted)">${product.id.split('-')[0]}</td>
                     <td class="highlight-text">${product.name}</td>
+                    <td>${catName}</td>
                     <td>${formatCurrency(product.price)}</td>
                     <td>${product.quantity} ${stockBadge}</td>
+                    <td>${dataDisplay}</td>
                     <td class="action-cell">
-                        <button class="btn-icon edit" onclick="app.openQuantityModal('${product.id}')" title="Atualizar Estoque">📦</button>
+                        <button class="btn-icon edit" onclick="app.openEditProductModal('${product.id}')" title="Editar Produto">✏️</button>
+                        <button class="btn-icon edit" onclick="app.openQuantityModal('${product.id}')" title="Atualizar Estoque rápido">📦</button>
                         <button class="btn-icon delete" onclick="app.deleteProduct('${product.id}')" title="Remover Produto">🗑️</button>
                     </td>
                 `;
                 this.tableBody.appendChild(tr);
             });
+        }
+    }
+
+    openEditProductModal(id) {
+        const product = this.products.find(p => p.id === id);
+        if (product) {
+            document.getElementById('modal-title').textContent = 'Editar Produto';
+            document.getElementById('edit-product-id').value = product.id;
+            document.getElementById('product-name').value = product.name;
+            document.getElementById('product-price').value = product.price;
+            document.getElementById('product-quantity').value = product.quantity;
+            this.productCategorySelect.value = product.categoryId || '';
+            this.productModal.classList.remove('hidden');
         }
     }
 

@@ -1,0 +1,109 @@
+using EstoqueManager.Core;
+using EstoqueManager.Data;
+using Microsoft.AspNetCore.Mvc;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Configuração de CORS para permitir consumo do frontend no mesmo host
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
+// Registra o StockService como Singleton, pois ele mantém estado em memória e acessa arquivo
+builder.Services.AddSingleton<StockService>();
+
+var app = builder.Build();
+
+app.UseCors("AllowAll");
+
+// Serve arquivos estáticos da pasta wwwroot
+app.UseStaticFiles();
+
+// Configura o mapeamento de requisições de API
+var api = app.MapGroup("/api/products");
+
+api.MapGet("/", (StockService stock) =>
+{
+    var products = stock.List();
+    return Results.Ok(products);
+});
+
+api.MapGet("/{id:guid}", (Guid id, StockService stock) =>
+{
+    var product = stock.GetById(id);
+    return product is not null ? Results.Ok(product) : Results.NotFound();
+});
+
+api.MapGet("/search", (string q, StockService stock) =>
+{
+    if (string.IsNullOrWhiteSpace(q))
+        return Results.BadRequest("Termo de busca não pode ser vazio.");
+
+    var products = stock.List()
+        .Where(p => p.Name.Contains(q, StringComparison.OrdinalIgnoreCase))
+        .ToList();
+
+    return Results.Ok(products);
+});
+
+api.MapPost("/", async (ProductInputModel model, StockService stock) =>
+{
+    try
+    {
+        var product = new Product(model.Name, model.Price, model.Quantity);
+        await stock.AddAsync(product);
+        return Results.Created($"/api/products/{product.Id}", product);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.Conflict(new { message = ex.Message });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
+});
+
+api.MapPut("/{id:guid}/quantity", async (Guid id, [FromBody] int quantity, StockService stock) =>
+{
+    if (quantity < 0)
+        return Results.BadRequest(new { message = "Quantidade não pode ser negativa." });
+
+    var success = await stock.UpdateQuantityAsync(id, quantity);
+    if (!success)
+        return Results.NotFound();
+
+    return Results.Ok();
+});
+
+api.MapDelete("/{id:guid}", async (Guid id, StockService stock) =>
+{
+    var success = await stock.RemoveAsync(id);
+    if (!success)
+        return Results.NotFound();
+
+    return Results.Ok();
+});
+
+// Fallback para SPA - qualquer rota não mapeada para arquivo físico cai no index.html
+app.MapFallbackToFile("index.html");
+
+app.Run();
+
+// Modelo para receber dados na criação
+public class ProductInputModel
+{
+    public string Name { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+    public int Quantity { get; set; }
+}

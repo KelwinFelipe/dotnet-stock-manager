@@ -8,7 +8,7 @@ bool isRunning = true;
 // Loop principal de execução do console interativo
 while (isRunning)
 {
-    Console.Clear();
+    try { Console.Clear(); } catch (System.IO.IOException) { /* Ignored in non-interactive environment */ }
     Console.ForegroundColor = ConsoleColor.Cyan;
     Console.WriteLine("=========================================");
     Console.WriteLine("          GERENCIADOR DE ESTOQUE         ");
@@ -56,7 +56,7 @@ while (isRunning)
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("\nOpção inválida! Pressione qualquer tecla para continuar.");
             Console.ResetColor();
-            Console.ReadKey();
+            try { Console.ReadKey(); } catch (System.IO.IOException) { /* Ignored */ }
             break;
     }
 }
@@ -66,7 +66,7 @@ while (isRunning)
 /// </summary>
 async Task AddProductMenuAsync()
 {
-    Console.Clear();
+    try { Console.Clear(); } catch (System.IO.IOException) { /* Ignored in non-interactive environment */ }
     Console.ForegroundColor = ConsoleColor.Cyan;
     Console.WriteLine(">>> CADASTRAR NOVO PRODUTO <<<\n");
     Console.ResetColor();
@@ -90,7 +90,7 @@ async Task AddProductMenuAsync()
         Console.ForegroundColor = ConsoleColor.Red;
         Console.WriteLine("\nErro: Quantidade em formato numérico inválido.");
         Console.ResetColor();
-        Console.ReadKey();
+        try { Console.ReadKey(); } catch (System.IO.IOException) { /* Ignored */ }
         return;
     }
 
@@ -142,7 +142,7 @@ async Task AddProductMenuAsync()
 /// </summary>
 void ListProductsMenu()
 {
-    Console.Clear();
+    try { Console.Clear(); } catch (System.IO.IOException) { /* Ignored in non-interactive environment */ }
     Console.ForegroundColor = ConsoleColor.Cyan;
     Console.WriteLine(">>> LISTA DE PRODUTOS EM ESTOQUE <<<\n");
     Console.ResetColor();
@@ -176,7 +176,7 @@ void ListProductsMenu()
 /// </summary>
 void SearchProductMenu()
 {
-    Console.Clear();
+    try { Console.Clear(); } catch (System.IO.IOException) { /* Ignored in non-interactive environment */ }
     Console.ForegroundColor = ConsoleColor.Cyan;
     Console.WriteLine(">>> BUSCAR PRODUTO <<<\n");
     Console.ResetColor();
@@ -228,7 +228,7 @@ void SearchProductMenu()
 /// </summary>
 async Task UpdateStockMenuAsync()
 {
-    Console.Clear();
+    try { Console.Clear(); } catch (System.IO.IOException) { /* Ignored in non-interactive environment */ }
     Console.ForegroundColor = ConsoleColor.Cyan;
     Console.WriteLine(">>> ATUALIZAR QUANTIDADE EM ESTOQUE <<<\n");
     Console.ResetColor();
@@ -297,7 +297,7 @@ async Task UpdateStockMenuAsync()
 /// </summary>
 async Task RemoveProductMenuAsync()
 {
-    Console.Clear();
+    try { Console.Clear(); } catch (System.IO.IOException) { /* Ignored in non-interactive environment */ }
     Console.ForegroundColor = ConsoleColor.Cyan;
     Console.WriteLine(">>> REMOVER PRODUTO DO SISTEMA <<<\n");
     Console.ResetColor();

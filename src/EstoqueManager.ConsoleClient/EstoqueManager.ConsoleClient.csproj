@@ -12,3 +12,4 @@
     <ProjectReference Include="..\EstoqueManager.Data\EstoqueManager.Data.csproj" />
     <ProjectReference Include="..\EstoqueManager.Export\EstoqueManager.Export.csproj" />
   </ItemGroup>
+</Project>

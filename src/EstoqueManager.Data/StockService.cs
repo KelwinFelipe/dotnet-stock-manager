@@ -1,5 +1,6 @@
 using System.Text.Json;
 using EstoqueManager.Core;
+using System.Collections.Concurrent;
 
 namespace EstoqueManager.Data;
 
@@ -11,8 +12,10 @@ public class StockService
     // Caminho relativo para armazenamento local em arquivo JSON
     private readonly string _filePath = "products.json";
     
-    // Coleção principal em memória contendo a lista de produtos
-    private List<Product> _products = [];
+    // Coleção principal em memória contendo a lista de produtos em forma thread‑safe
+    private ConcurrentDictionary<Guid, Product> _products = new();
+    // Deprecated List, replaced by ConcurrentDictionary
+// private List<Product> _products = [];
 
     /// <summary>
     /// Construtor que inicializa o serviço carregando o histórico de dados existentes de forma síncrona.
@@ -29,15 +32,15 @@ public class StockService
     /// <exception cref="InvalidOperationException">Lançada caso um produto com o mesmo nome já exista.</exception>
     public async Task AddAsync(Product product)
     {
-        // Validação de unicidade sem distinção de maiúsculas/minúsculas
-        if (_products.Any(p => p.Name.Equals(product.Name, StringComparison.OrdinalIgnoreCase)))
+        // Validação de unicidade sem distinção de maiúsculas/minúsculas usando ConcurrentDictionary
+        if (_products.Values.Any(p => p.Name.Equals(product.Name, StringComparison.OrdinalIgnoreCase)))
         {
             throw new InvalidOperationException($"Já existe um produto cadastrado com o nome '{product.Name}'.");
         }
 
-        _products.Add(product);
+        _products[product.Id] = product;
         await SaveDataAsync();
-        
+
         // Trilha de auditoria assíncrona
         await LogService.LogAsync($"PRODUTO ADICIONADO - ID: {product.Id} | Nome: {product.Name} | Preço: {product.Price:C2} | Qtd Inicial: {product.Quantity}");
     }
@@ -48,7 +51,8 @@ public class StockService
     /// <returns>Uma lista contendo todos os produtos.</returns>
     public List<Product> List()
     {
-        return _products;
+        // Return a copy to avoid external mutation
+        return _products.Values.ToList();
     }
 
     /// <summary>
@@ -58,7 +62,7 @@ public class StockService
     /// <returns>O primeiro produto que corresponder ao critério, ou null se não localizado.</returns>
     public Product? GetByName(string name)
     {
-        return _products
+        return _products.Values
             .FirstOrDefault(p =>
                 p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
     }
@@ -70,7 +74,8 @@ public class StockService
     /// <returns>O produto encontrado, ou null se inexistente.</returns>
     public Product? GetById(Guid id)
     {
-        return _products.FirstOrDefault(p => p.Id == id);
+        _products.TryGetValue(id, out var product);
+        return product;
     }
 
     /// <summary>
@@ -81,12 +86,12 @@ public class StockService
     /// <returns>True se atualizado com sucesso; False caso contrário.</returns>
     public async Task<bool> UpdateQuantityAsync(Guid id, int newQuantity)
     {
-        var product = GetById(id);
-        if (product == null)
+        if (!_products.TryGetValue(id, out var product))
             return false;
 
         int oldQuantity = product.Quantity;
         product.Quantity = newQuantity;
+        _products[id] = product; // ensure updated entry
         
         await SaveDataAsync();
         await LogService.LogAsync($"ESTOQUE ATUALIZADO - ID: {product.Id} | Nome: {product.Name} | Qtd: {oldQuantity} -> {newQuantity}");
@@ -99,13 +104,12 @@ public class StockService
     /// </summary>
     public async Task<bool> UpdateProductAsync(Guid id, Product updatedProduct)
     {
-        var product = GetById(id);
-        if (product == null)
+        if (!_products.TryGetValue(id, out var product))
             return false;
 
         // Validação de colisão de nome para edição
         if (!product.Name.Equals(updatedProduct.Name, StringComparison.OrdinalIgnoreCase) && 
-            _products.Any(p => p.Name.Equals(updatedProduct.Name, StringComparison.OrdinalIgnoreCase)))
+            _products.Values.Any(p => p.Name.Equals(updatedProduct.Name, StringComparison.OrdinalIgnoreCase)))
         {
             throw new InvalidOperationException($"Já existe um produto cadastrado com o nome '{updatedProduct.Name}'.");
         }
@@ -115,6 +119,7 @@ public class StockService
         product.Quantity = updatedProduct.Quantity;
         product.CategoryId = updatedProduct.CategoryId;
         product.UpdatedAt = DateTime.Now;
+        _products[id] = product; // persist changes
 
         await SaveDataAsync();
         await LogService.LogAsync($"PRODUTO ATUALIZADO (COMPLETO) - ID: {product.Id} | Nome: {product.Name}");
@@ -133,10 +138,10 @@ public class StockService
         if (product == null)
             return false;
 
-        _products.Remove(product);
+        _products.TryRemove(id, out var removedProduct);
         
         await SaveDataAsync();
-        await LogService.LogAsync($"PRODUTO REMOVIDO - ID: {product.Id} | Nome: {product.Name}");
+        await LogService.LogAsync($"PRODUTO REMOVIDO - ID: {id} | Nome: {removedProduct?.Name}");
         
         return true;
     }
@@ -151,7 +156,8 @@ public class StockService
             if (File.Exists(_filePath))
             {
                 var json = File.ReadAllText(_filePath);
-                _products = JsonSerializer.Deserialize<List<Product>>(json) ?? [];
+                var list = JsonSerializer.Deserialize<List<Product>>(json) ?? new List<Product>();
+                _products = new ConcurrentDictionary<Guid, Product>(list.ToDictionary(p => p.Id, p => p));
             }
         }
         catch
@@ -168,7 +174,7 @@ public class StockService
         try
         {
             var options = new JsonSerializerOptions { WriteIndented = true };
-            var json = JsonSerializer.Serialize(_products, options);
+            var json = JsonSerializer.Serialize(_products.Values, options);
             await File.WriteAllTextAsync(_filePath, json);
         }
         catch (Exception ex)

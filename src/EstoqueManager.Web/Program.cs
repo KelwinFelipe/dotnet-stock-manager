@@ -32,19 +32,19 @@ app.UseStaticFiles();
 // Configura o mapeamento de requisições de API
 var api = app.MapGroup("/api/products");
 
-api.MapGet("/", (StockService stock) =>
+api.MapGet("/", (IStockService stock) =>
 {
     var products = stock.List();
     return Results.Ok(products);
 });
 
-api.MapGet("/{id:guid}", (Guid id, StockService stock) =>
+api.MapGet("/{id:guid}", (Guid id, IStockService stock) =>
 {
     var product = stock.GetById(id);
     return product is not null ? Results.Ok(product) : Results.NotFound();
 });
 
-api.MapGet("/search", (string q, StockService stock) =>
+api.MapGet("/search", (string q, IStockService stock) =>
 {
     if (string.IsNullOrWhiteSpace(q))
         return Results.BadRequest("Termo de busca não pode ser vazio.");
@@ -56,7 +56,7 @@ api.MapGet("/search", (string q, StockService stock) =>
     return Results.Ok(products);
 });
 
-api.MapPost("/", async (ProductInputModel model, StockService stock) =>
+api.MapPost("/", async (ProductInputModel model, IStockService stock) =>
 {
     try
     {
@@ -81,7 +81,7 @@ api.MapPost("/", async (ProductInputModel model, StockService stock) =>
     }
 });
 
-api.MapPut("/{id:guid}/quantity", async (Guid id, [FromBody] int quantity, StockService stock) =>
+api.MapPut("/{id:guid}/quantity", async (Guid id, [FromBody] int quantity, IStockService stock) =>
 {
     if (quantity < 0)
         return Results.BadRequest(new { message = "Quantidade não pode ser negativa." });
@@ -93,7 +93,7 @@ api.MapPut("/{id:guid}/quantity", async (Guid id, [FromBody] int quantity, Stock
     return Results.Ok();
 });
 
-api.MapDelete("/{id:guid}", async (Guid id, StockService stock) =>
+api.MapDelete("/{id:guid}", async (Guid id, IStockService stock) =>
 {
     var success = await stock.RemoveAsync(id);
     if (!success)
@@ -102,7 +102,7 @@ api.MapDelete("/{id:guid}", async (Guid id, StockService stock) =>
     return Results.Ok();
 });
 
-api.MapPut("/{id:guid}", async (Guid id, ProductInputModel model, StockService stock) =>
+api.MapPut("/{id:guid}", async (Guid id, ProductInputModel model, IStockService stock) =>
 {
     try
     {
@@ -147,18 +147,18 @@ api.MapGet("/export/pdf", async (StockService stock, ExportService export) =>
 // Configura o mapeamento de requisições de Categorias
 var catApi = app.MapGroup("/api/categories");
 
-catApi.MapGet("/", (CategoryService catService) =>
+catApi.MapGet("/", (ICategoryService catService) =>
 {
     return Results.Ok(catService.List());
 });
 
-catApi.MapGet("/{id:guid}", (Guid id, CategoryService catService) =>
+catApi.MapGet("/{id:guid}", (Guid id, ICategoryService catService) =>
 {
     var category = catService.GetById(id);
     return category is not null ? Results.Ok(category) : Results.NotFound();
 });
 
-catApi.MapPost("/", async (CategoryInputModel model, CategoryService catService) =>
+catApi.MapPost("/", async (CategoryInputModel model, ICategoryService catService) =>
 {
     try
     {
@@ -176,7 +176,7 @@ catApi.MapPost("/", async (CategoryInputModel model, CategoryService catService)
     }
 });
 
-catApi.MapPut("/{id:guid}", async (Guid id, CategoryInputModel model, CategoryService catService) =>
+catApi.MapPut("/{id:guid}", async (Guid id, CategoryInputModel model, ICategoryService catService) =>
 {
     try
     {
@@ -191,7 +191,7 @@ catApi.MapPut("/{id:guid}", async (Guid id, CategoryInputModel model, CategorySe
     }
 });
 
-catApi.MapDelete("/{id:guid}", async (Guid id, CategoryService catService) =>
+catApi.MapDelete("/{id:guid}", async (Guid id, ICategoryService catService) =>
 {
     var success = await catService.RemoveAsync(id);
     if (!success)

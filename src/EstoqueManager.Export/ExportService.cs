@@ -12,6 +12,10 @@ namespace EstoqueManager.Export
 {
     public class ExportService
     {
+        public ExportService()
+        {
+            QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+        }
         public async Task<string> GenerateXmlAsync(IEnumerable<Product> products)
         {
             var serializer = new XmlSerializer(typeof(List<Product>));
@@ -20,6 +24,19 @@ namespace EstoqueManager.Export
             ms.Seek(0, SeekOrigin.Begin);
             using var reader = new StreamReader(ms);
             return await reader.ReadToEndAsync();
+        }
+
+        public async Task<byte[]> GenerateCsvAsync(IEnumerable<Product> products)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("ID,Nome,Preço,Quantidade,CategoriaId,CriadoEm,AtualizadoEm");
+            foreach (var p in products)
+            {
+                var name = p.Name.Contains(',') ? $"\"{p.Name}\"" : p.Name;
+                sb.AppendLine($"{p.Id},{name},{p.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)},{p.Quantity},{p.CategoryId},{p.CreatedAt:o},{p.UpdatedAt?.ToString("o") ?? ""}");
+            }
+            var utf8 = new UTF8Encoding(true);
+            return await Task.FromResult(utf8.GetBytes(sb.ToString()));
         }
 
         public async Task<byte[]> GeneratePdfAsync(IEnumerable<Product> products)

@@ -1,7 +1,7 @@
 using EstoqueManager.Core;
 using EstoqueManager.Data;
 using Microsoft.AspNetCore.Mvc;
-
+using System.ComponentModel.DataAnnotations;
 using EstoqueManager.Export;
 using System.Text;
 var builder = WebApplication.CreateBuilder(args);
@@ -18,8 +18,8 @@ builder.Services.AddCors(options =>
 });
 
 // Registra os serviços como Singleton, pois eles mantêm estado em memória e acessam arquivo
-builder.Services.AddSingleton<StockService>();
-builder.Services.AddSingleton<CategoryService>();
+builder.Services.AddSingleton<IStockService, StockService>();
+builder.Services.AddSingleton<ICategoryService, CategoryService>();
 builder.Services.AddSingleton<ExportService>();
 
 var app = builder.Build();
@@ -58,6 +58,13 @@ api.MapGet("/search", (string q, IStockService stock) =>
 
 api.MapPost("/", async (ProductInputModel model, IStockService stock) =>
 {
+    var valCtx = new ValidationContext(model);
+    var valResults = new List<ValidationResult>();
+    if (!Validator.TryValidateObject(model, valCtx, valResults, true))
+    {
+        return Results.BadRequest(valResults.Select(r => r.ErrorMessage));
+    }
+
     try
     {
         var product = new Product(model.Name, model.Price, model.Quantity)
@@ -104,6 +111,13 @@ api.MapDelete("/{id:guid}", async (Guid id, IStockService stock) =>
 
 api.MapPut("/{id:guid}", async (Guid id, ProductInputModel model, IStockService stock) =>
 {
+    var valCtx = new ValidationContext(model);
+    var valResults = new List<ValidationResult>();
+    if (!Validator.TryValidateObject(model, valCtx, valResults, true))
+    {
+        return Results.BadRequest(valResults.Select(r => r.ErrorMessage));
+    }
+
     try
     {
         var product = new Product(model.Name, model.Price, model.Quantity)
@@ -131,14 +145,20 @@ api.MapPut("/{id:guid}", async (Guid id, ProductInputModel model, IStockService 
     }
 });
 // Export endpoints
-api.MapGet("/export/xml", async (StockService stock, ExportService export) =>
+api.MapGet("/export/xml", async (IStockService stock, ExportService export) =>
 {
     var xml = await export.GenerateXmlAsync(stock.List());
     var bytes = Encoding.UTF8.GetBytes(xml);
     return Results.File(bytes, "application/xml", "products.xml");
 });
 
-api.MapGet("/export/pdf", async (StockService stock, ExportService export) =>
+api.MapGet("/export/csv", async (IStockService stock, ExportService export) =>
+{
+    var bytes = await export.GenerateCsvAsync(stock.List());
+    return Results.File(bytes, "text/csv", "products.csv");
+});
+
+api.MapGet("/export/pdf", async (IStockService stock, ExportService export) =>
 {
     var pdfBytes = await export.GeneratePdfAsync(stock.List());
     return Results.File(pdfBytes, "application/pdf", "products.pdf");
@@ -160,6 +180,13 @@ catApi.MapGet("/{id:guid}", (Guid id, ICategoryService catService) =>
 
 catApi.MapPost("/", async (CategoryInputModel model, ICategoryService catService) =>
 {
+    var valCtx = new ValidationContext(model);
+    var valResults = new List<ValidationResult>();
+    if (!Validator.TryValidateObject(model, valCtx, valResults, true))
+    {
+        return Results.BadRequest(valResults.Select(r => r.ErrorMessage));
+    }
+
     try
     {
         var category = new Category(model.Name, model.Description);
@@ -178,6 +205,13 @@ catApi.MapPost("/", async (CategoryInputModel model, ICategoryService catService
 
 catApi.MapPut("/{id:guid}", async (Guid id, CategoryInputModel model, ICategoryService catService) =>
 {
+    var valCtx = new ValidationContext(model);
+    var valResults = new List<ValidationResult>();
+    if (!Validator.TryValidateObject(model, valCtx, valResults, true))
+    {
+        return Results.BadRequest(valResults.Select(r => r.ErrorMessage));
+    }
+
     try
     {
         var success = await catService.UpdateAsync(id, model.Name, model.Description);
@@ -199,6 +233,18 @@ catApi.MapDelete("/{id:guid}", async (Guid id, ICategoryService catService) =>
     return Results.Ok();
 });
 
+// Configura o mapeamento de requisições de Dashboard
+var dashApi = app.MapGroup("/api/dashboard");
+
+dashApi.MapGet("/stats", (IStockService stock) =>
+{
+    var products = stock.List();
+    var totalItems = products.Count();
+    var totalValue = products.Sum(p => p.Price * p.Quantity);
+    var lowStock = products.Count(p => p.Quantity < 10);
+    return Results.Ok(new { TotalItems = totalItems, TotalValue = totalValue, LowStockCount = lowStock });
+});
+
 // Fallback para SPA - qualquer rota não mapeada para arquivo físico cai no index.html
 app.MapFallbackToFile("index.html");
 
@@ -207,14 +253,24 @@ app.Run();
 // Modelo para receber dados na criação
 public class ProductInputModel
 {
+    [Required(ErrorMessage = "O nome é obrigatório.")]
+    [StringLength(100, MinimumLength = 2, ErrorMessage = "O nome deve ter entre 2 e 100 caracteres.")]
     public string Name { get; set; } = string.Empty;
+
+    [Range(0.01, (double)decimal.MaxValue, ErrorMessage = "O preço deve ser maior que zero.")]
     public decimal Price { get; set; }
+
+    [Range(0, int.MaxValue, ErrorMessage = "A quantidade não pode ser negativa.")]
     public int Quantity { get; set; }
+    
     public Guid? CategoryId { get; set; }
 }
 
 public class CategoryInputModel
 {
+    [Required(ErrorMessage = "O nome é obrigatório.")]
+    [StringLength(50, MinimumLength = 2, ErrorMessage = "O nome deve ter entre 2 e 50 caracteres.")]
     public string Name { get; set; } = string.Empty;
+    
     public string Description { get; set; } = string.Empty;
 }

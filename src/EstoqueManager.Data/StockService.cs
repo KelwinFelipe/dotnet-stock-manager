@@ -7,10 +7,10 @@ namespace EstoqueManager.Data;
 /// <summary>
 /// Serviço responsável pela persistência, auditoria e manipulação assíncrona da coleção de produtos.
 /// </summary>
-public class StockService
+public class StockService : IStockService
 {
     // Caminho relativo para armazenamento local em arquivo JSON
-    private readonly string _filePath = "products.json";
+    private readonly string _filePath = Path.Combine("data", "products.json");
     
     // Coleção principal em memória contendo a lista de produtos em forma thread‑safe
     private ConcurrentDictionary<Guid, Product> _products = new();
@@ -22,6 +22,7 @@ public class StockService
     /// </summary>
     public StockService()
     {
+        if (!Directory.Exists("data")) Directory.CreateDirectory("data");
         LoadData();
     }
 

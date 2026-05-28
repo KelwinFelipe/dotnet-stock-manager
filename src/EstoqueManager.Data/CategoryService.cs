@@ -7,13 +7,14 @@ namespace EstoqueManager.Data;
 /// <summary>
 /// Serviço responsável pela persistência e manipulação assíncrona da coleção de categorias.
 /// </summary>
-public class CategoryService
+public class CategoryService : ICategoryService
 {
-    private readonly string _filePath = "categories.json";
+    private readonly string _filePath = Path.Combine("data", "categories.json");
     private ConcurrentDictionary<Guid, Category> _categories = new();
 
     public CategoryService()
     {
+        if (!Directory.Exists("data")) Directory.CreateDirectory("data");
         LoadData();
     }
 

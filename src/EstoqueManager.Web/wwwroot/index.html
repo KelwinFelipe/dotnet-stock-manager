@@ -8,12 +8,16 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <header class="glass-header">
         <div class="container header-content">
             <h1>📦 Estoque Manager</h1>
-            <div>
+            <div style="display: flex; gap: 8px;">
+                <button id="btn-export-csv" class="btn-secondary" title="Exportar para CSV">📊 CSV</button>
+                <button id="btn-export-pdf" class="btn-secondary" title="Exportar para PDF">📄 PDF</button>
+                <button id="btn-export-xml" class="btn-secondary" title="Exportar para XML">📑 XML</button>
                 <button id="btn-manage-categories" class="btn-secondary">Categorias</button>
                 <button id="btn-new-product" class="btn-primary">Novo Produto</button>
             </div>
@@ -37,11 +41,26 @@
             </div>
         </section>
 
+        <!-- Charts Dashboard -->
+        <section class="charts-dashboard" style="display: flex; gap: 24px; margin-bottom: 40px; flex-wrap: wrap;">
+            <div class="card glass-card chart-container" style="flex: 1; min-width: 300px; padding: 20px; position: relative; height: 350px;">
+                <canvas id="category-pie-chart"></canvas>
+            </div>
+            <div class="card glass-card chart-container" style="flex: 1; min-width: 300px; padding: 20px; position: relative; height: 350px;">
+                <canvas id="category-bar-chart"></canvas>
+            </div>
+        </section>
+
         <!-- Search & Filter -->
-        <section class="controls">
-            <div class="search-box">
+        <section class="controls" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+            <div class="search-box" style="flex: 1; min-width: 250px;">
                 <input type="text" id="search-input" placeholder="Buscar produto por nome...">
                 <span class="search-icon">🔍</span>
+            </div>
+            <div class="filter-box" style="flex: 1; max-width: 300px; min-width: 200px;">
+                <select id="category-filter" class="form-control" style="width: 100%; padding: 12px 16px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: var(--radius-pill); color: var(--text-main);">
+                    <option value="">Todas as Categorias</option>
+                </select>
             </div>
         </section>
 
@@ -141,12 +160,17 @@
                 <h2>Gerenciar Categorias</h2>
                 <button class="btn-close" id="btn-close-category-modal">×</button>
             </div>
+            <input type="hidden" id="edit-category-id">
             <div class="form-row" style="margin-bottom: 20px;">
                 <div class="form-group" style="flex: 2; margin-bottom: 0;">
-                    <input type="text" id="new-category-name" placeholder="Nova Categoria..." required>
+                    <input type="text" id="new-category-name" placeholder="Nome da Categoria..." required>
                 </div>
-                <div class="form-group" style="flex: 1; margin-bottom: 0; display: flex;">
-                    <button id="btn-add-category" class="btn-primary" style="width: 100%;">Adicionar</button>
+                <div class="form-group" style="flex: 2; margin-bottom: 0;">
+                    <input type="text" id="new-category-desc" placeholder="Descrição (opcional)...">
+                </div>
+                <div class="form-group" style="flex: 1; margin-bottom: 0; display: flex; gap: 8px;">
+                    <button id="btn-save-category" class="btn-primary" style="width: 100%;">Salvar</button>
+                    <button id="btn-cancel-category-edit" class="btn-secondary hidden" style="width: auto; padding: 10px;" title="Cancelar Edição">×</button>
                 </div>
             </div>
             <div class="table-container" style="min-height: auto; max-height: 250px; overflow-y: auto; margin-bottom: 0;">
@@ -154,7 +178,8 @@
                     <thead>
                         <tr>
                             <th>Nome</th>
-                            <th style="width: 80px; text-align: center;">Ações</th>
+                            <th>Descrição</th>
+                            <th style="width: 100px; text-align: center;">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="categories-tbody">

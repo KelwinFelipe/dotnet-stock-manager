@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using EstoqueManager.Core.Models; // Assuming Product and Category models are in this namespace
+
 
 namespace EstoqueManager.Core
 {

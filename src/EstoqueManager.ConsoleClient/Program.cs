@@ -102,7 +102,7 @@ class Program
 
     private static async Task SearchProducts()
     {
-        Console.Write("Termo de busca: "); var term = Console.ReadLine();
+        Console.Write("Termo de busca: "); var term = Console.ReadLine() ?? "";
         var products = await client.GetFromJsonAsync<ProductDto[]>($"/api/products/search?q={Uri.EscapeDataString(term)}");
         if (products == null || products.Length == 0) { Console.WriteLine("Nenhum produto encontrado."); return; }
         foreach (var p in products)

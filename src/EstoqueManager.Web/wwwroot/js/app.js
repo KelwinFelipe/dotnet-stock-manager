@@ -75,17 +75,30 @@ class ApiService {
         return response.json();
     }
 
-    static async addCategory(name) {
+    static async addCategory(name, description = '') {
         const response = await fetch(CAT_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: name, description: '' })
+            body: JSON.stringify({ name: name, description: description })
         });
         if (!response.ok) {
             const error = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
             throw new Error(error.message || 'Falha ao cadastrar categoria');
         }
         return response.json();
+    }
+
+    static async updateCategory(id, name, description = '') {
+        const response = await fetch(`${CAT_API_URL}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, description: description })
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
+            throw new Error(error.message || 'Falha ao atualizar categoria');
+        }
+        return true;
     }
 
     static async deleteCategory(id) {
@@ -100,6 +113,9 @@ class UIManager {
     constructor() {
         this.products = [];
         this.categories = [];
+        this.allProducts = [];
+        this.pieChart = null;
+        this.barChart = null;
         this.initElements();
         this.bindEvents();
         this.loadInitialData();
@@ -128,6 +144,7 @@ class UIManager {
         this.quantityForm = document.getElementById('quantity-form');
         this.productCategorySelect = document.getElementById('product-category');
         this.categoriesTbody = document.getElementById('categories-tbody');
+        this.categoryFilterSelect = document.getElementById('category-filter');
     }
 
     bindEvents() {
@@ -161,21 +178,62 @@ class UIManager {
         document.getElementById('btn-close-category-modal').addEventListener('click', () => this.categoryModal.classList.add('hidden'));
         document.getElementById('btn-done-category-modal').addEventListener('click', () => this.categoryModal.classList.add('hidden'));
 
-        // Category Add
-        document.getElementById('btn-add-category').addEventListener('click', async () => {
-            const input = document.getElementById('new-category-name');
-            const name = input.value.trim();
+        // Exports
+        document.getElementById('btn-export-csv').addEventListener('click', () => {
+            window.open('/api/products/export/csv', '_blank');
+        });
+        document.getElementById('btn-export-pdf').addEventListener('click', () => {
+            window.open('/api/products/export/pdf', '_blank');
+        });
+        document.getElementById('btn-export-xml').addEventListener('click', () => {
+            window.open('/api/products/export/xml', '_blank');
+        });
+
+        // Category Filter
+        this.categoryFilterSelect.addEventListener('change', () => {
+            this.loadProducts(this.searchInput.value);
+        });
+
+        // Category Add / Update
+        document.getElementById('btn-save-category').addEventListener('click', async () => {
+            const idInput = document.getElementById('edit-category-id');
+            const nameInput = document.getElementById('new-category-name');
+            const descInput = document.getElementById('new-category-desc');
+            const id = idInput.value;
+            const name = nameInput.value.trim();
+            const desc = descInput.value.trim();
+            
             if (!name) return;
 
             try {
-                await ApiService.addCategory(name);
-                input.value = '';
-                this.showToast('Categoria adicionada!', 'success');
+                if (id) {
+                    await ApiService.updateCategory(id, name, desc);
+                    this.showToast('Categoria atualizada!', 'success');
+                } else {
+                    await ApiService.addCategory(name, desc);
+                    this.showToast('Categoria adicionada!', 'success');
+                }
+                
+                idInput.value = '';
+                nameInput.value = '';
+                descInput.value = '';
+                document.getElementById('btn-save-category').textContent = 'Salvar';
+                document.getElementById('btn-cancel-category-edit').classList.add('hidden');
+                
                 await this.loadCategories();
                 this.renderCategoriesList();
+                this.loadProducts(this.searchInput.value); // refresh products to show new category name if updated
             } catch (err) {
                 this.showToast(err.message, 'error');
             }
+        });
+        
+        document.getElementById('btn-cancel-category-edit').addEventListener('click', () => {
+            document.getElementById('edit-category-id').value = '';
+            document.getElementById('new-category-name').value = '';
+            document.getElementById('new-category-desc').value = '';
+            document.getElementById('btn-save-category').textContent = 'Salvar';
+            document.getElementById('btn-cancel-category-edit').classList.add('hidden');
         });
 
         // Forms Submit
@@ -238,12 +296,30 @@ class UIManager {
 
     updateCategorySelect() {
         this.productCategorySelect.innerHTML = '<option value="">Sem Categoria</option>';
+        this.categoryFilterSelect.innerHTML = '<option value="">Todas as Categorias</option>';
+        
         this.categories.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c.id;
-            opt.textContent = c.name;
-            this.productCategorySelect.appendChild(opt);
+            const opt1 = document.createElement('option');
+            opt1.value = c.id;
+            opt1.textContent = c.name;
+            this.productCategorySelect.appendChild(opt1);
+            
+            const opt2 = document.createElement('option');
+            opt2.value = c.id;
+            opt2.textContent = c.name;
+            this.categoryFilterSelect.appendChild(opt2);
         });
+    }
+
+    editCategory(id) {
+        const cat = this.categories.find(c => c.id === id);
+        if (cat) {
+            document.getElementById('edit-category-id').value = cat.id;
+            document.getElementById('new-category-name').value = cat.name;
+            document.getElementById('new-category-desc').value = cat.description || '';
+            document.getElementById('btn-save-category').textContent = 'Atualizar';
+            document.getElementById('btn-cancel-category-edit').classList.remove('hidden');
+        }
     }
 
     renderCategoriesList() {
@@ -252,7 +328,9 @@ class UIManager {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${c.name}</td>
-                <td style="text-align: center;">
+                <td><span style="font-size: 0.85rem; color: var(--text-muted)">${c.description || '-'}</span></td>
+                <td style="text-align: center; display: flex; gap: 4px; justify-content: center;">
+                    <button class="btn-icon edit" onclick="app.editCategory('${c.id}')" title="Editar">✏️</button>
                     <button class="btn-icon delete" onclick="app.deleteCategory('${c.id}')" title="Remover">🗑️</button>
                 </td>
             `;
@@ -277,15 +355,25 @@ class UIManager {
     async loadProducts(searchQuery = '') {
         this.showLoading(true);
         try {
-            this.products = await ApiService.getProducts(searchQuery);
-            this.renderTable();
-            this.updateDashboard();
+            this.allProducts = await ApiService.getProducts(searchQuery);
+            this.applyFilter();
         } catch (error) {
             this.showToast('Erro ao carregar produtos', 'error');
             console.error(error);
         } finally {
             this.showLoading(false);
         }
+    }
+
+    applyFilter() {
+        const catFilter = this.categoryFilterSelect.value;
+        if (catFilter) {
+            this.products = this.allProducts.filter(p => p.categoryId === catFilter);
+        } else {
+            this.products = [...this.allProducts];
+        }
+        this.renderTable();
+        this.updateDashboard();
     }
 
     updateDashboard() {
@@ -296,6 +384,90 @@ class UIManager {
         this.kpiTotalItems.textContent = totalItems;
         this.kpiTotalValue.textContent = formatCurrency(totalValue);
         this.kpiLowStock.textContent = lowStock;
+        
+        this.renderCharts();
+    }
+
+    renderCharts() {
+        if (!window.Chart) return; // Prevent errors if Chart.js fails to load
+        
+        const catMap = {};
+        this.categories.forEach(c => {
+            catMap[c.id] = { name: c.name, count: 0, value: 0 };
+        });
+        catMap['uncategorized'] = { name: 'Sem Categoria', count: 0, value: 0 };
+
+        // We chart based on allProducts (ignoring search text filter usually, or we can chart the filtered ones. Let's use filtered products.)
+        this.products.forEach(p => {
+            const catId = p.categoryId || 'uncategorized';
+            if (!catMap[catId]) catMap[catId] = { name: 'Desconhecido', count: 0, value: 0 };
+            catMap[catId].count += 1;
+            catMap[catId].value += (p.price * p.quantity);
+        });
+
+        // Filter out empty categories
+        const activeCats = Object.values(catMap).filter(c => c.count > 0);
+        
+        const labels = activeCats.map(c => c.name);
+        const countData = activeCats.map(c => c.count);
+        const valueData = activeCats.map(c => c.value);
+
+        const colors = ['#00bfa5', '#42a5f5', '#ab47bc', '#ffca28', '#ef5350', '#66bb6a', '#ffa726', '#8d6e63', '#78909c'];
+
+        Chart.defaults.color = '#e0e0e0';
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+
+        // Pie Chart
+        const pieCtx = document.getElementById('category-pie-chart').getContext('2d');
+        if (this.pieChart) this.pieChart.destroy();
+        this.pieChart = new Chart(pieCtx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: countData,
+                    backgroundColor: colors,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    title: { display: true, text: 'Produtos por Categoria', color: '#fff', font: { size: 16 } }
+                }
+            }
+        });
+
+        // Bar Chart
+        const barCtx = document.getElementById('category-bar-chart').getContext('2d');
+        if (this.barChart) this.barChart.destroy();
+        this.barChart = new Chart(barCtx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Valor em Estoque (R$)',
+                    data: valueData,
+                    backgroundColor: 'rgba(0, 191, 165, 0.6)',
+                    borderColor: '#00bfa5',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: 'Valor em Estoque por Categoria', color: '#fff', font: { size: 16 } }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
     }
 
     renderTable() {

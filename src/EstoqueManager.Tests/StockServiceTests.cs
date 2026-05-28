@@ -183,5 +183,43 @@ namespace EstoqueManager.Tests
                 catch { }
             }
         }
+
+        [Fact]
+        public async Task StockService_UpdateProduct_ShouldCopyDescriptionField()
+        {
+            // Arrange
+            var service = new StockService();
+            var product = new Product("Teclado Mecânico", 299.90m, 15) { Description = "Original Description" };
+            await service.AddAsync(product);
+
+            var updatedProduct = new Product("Teclado Mecânico", 350.00m, 10) { Description = "New Description" };
+
+            // Act
+            var success = await service.UpdateProductAsync(product.Id, updatedProduct);
+            var retrieved = service.GetById(product.Id);
+
+            // Assert
+            Assert.True(success);
+            Assert.NotNull(retrieved);
+            Assert.Equal("New Description", retrieved.Description);
+            Assert.Equal(350.00m, retrieved.Price);
+            Assert.Equal(10, retrieved.Quantity);
+        }
+
+        [Fact]
+        public async Task StockService_UpdateProduct_WithDuplicateName_ShouldThrow()
+        {
+            // Arrange
+            var service = new StockService();
+            var product1 = new Product("Teclado Mecânico", 299.90m, 15);
+            var product2 = new Product("Mouse Gamer", 150m, 10);
+            await service.AddAsync(product1);
+            await service.AddAsync(product2);
+
+            var updatedProduct = new Product("Mouse Gamer", 299.90m, 15);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<InvalidOperationException>(() => service.UpdateProductAsync(product1.Id, updatedProduct));
+        }
     }
 }

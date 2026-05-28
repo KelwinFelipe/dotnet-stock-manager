@@ -119,6 +119,7 @@ public class StockService : IStockService
         product.Price = updatedProduct.Price;
         product.Quantity = updatedProduct.Quantity;
         product.CategoryId = updatedProduct.CategoryId;
+        product.Description = updatedProduct.Description;
         product.UpdatedAt = DateTime.Now;
         _products[id] = product; // persist changes
 

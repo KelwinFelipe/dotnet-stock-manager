@@ -169,6 +169,116 @@ api.MapGet("/export/pdf", async (IStockService stock, ExportService export) =>
     return Results.File(pdfBytes, "application/pdf", "products.pdf");
 });
 
+api.MapPost("/import/csv", async (HttpRequest request, IStockService stock) =>
+{
+    if (!request.HasFormContentType)
+        return Results.BadRequest(new { message = "Formato multipart/form-data obrigatório." });
+
+    var form = await request.ReadFormAsync();
+    var file = form.Files.GetFile("csvFile") ?? form.Files.FirstOrDefault();
+    if (file == null || file.Length == 0)
+        return Results.BadRequest(new { message = "Nenhum arquivo CSV enviado." });
+
+    using var reader = new StreamReader(file.OpenReadStream());
+    var header = await reader.ReadLineAsync();
+    if (string.IsNullOrWhiteSpace(header))
+        return Results.BadRequest(new { message = "Arquivo CSV vazio." });
+
+    char separator = header.Contains(';') ? ';' : ',';
+    var columns = CsvParserHelper.SplitCsvLine(header, separator).Select(c => c.Trim()).ToArray();
+    
+    int idxNome = Array.FindIndex(columns, c => c.Equals("Nome", StringComparison.OrdinalIgnoreCase));
+    int idxPreco = Array.FindIndex(columns, c => c.Equals("Preço", StringComparison.OrdinalIgnoreCase) || c.Equals("Preco", StringComparison.OrdinalIgnoreCase));
+    int idxQtd = Array.FindIndex(columns, c => c.Equals("Quantidade", StringComparison.OrdinalIgnoreCase) || c.Equals("Qtd", StringComparison.OrdinalIgnoreCase));
+    int idxCatId = Array.FindIndex(columns, c => c.Equals("CategoriaId", StringComparison.OrdinalIgnoreCase));
+    int idxDesc = Array.FindIndex(columns, c => c.Equals("Descrição", StringComparison.OrdinalIgnoreCase) || c.Equals("Descricao", StringComparison.OrdinalIgnoreCase) || c.Equals("Description", StringComparison.OrdinalIgnoreCase));
+
+    if (idxNome == -1 || idxPreco == -1 || idxQtd == -1)
+    {
+        return Results.BadRequest(new { message = "O CSV deve conter as colunas Nome, Preço e Quantidade." });
+    }
+
+    int imported = 0;
+    int skipped = 0;
+    var errors = new List<string>();
+    int lineNum = 1;
+    string? line;
+
+    while ((line = await reader.ReadLineAsync()) != null)
+    {
+        lineNum++;
+        if (string.IsNullOrWhiteSpace(line)) continue;
+
+        var parts = CsvParserHelper.SplitCsvLine(line, separator);
+        int maxIndex = Math.Max(idxNome, Math.Max(idxPreco, idxQtd));
+        if (parts.Length <= maxIndex)
+        {
+            skipped++;
+            errors.Add($"Linha {lineNum}: Número insuficiente de colunas.");
+            continue;
+        }
+
+        var name = parts[idxNome].Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            skipped++;
+            errors.Add($"Linha {lineNum}: O Nome não pode ser vazio.");
+            continue;
+        }
+
+        var priceStr = parts[idxPreco].Trim().Replace("R$", "").Trim();
+        if (!decimal.TryParse(priceStr, CultureInfo.InvariantCulture, out var price) &&
+            !decimal.TryParse(priceStr, new CultureInfo("pt-BR"), out price))
+        {
+            skipped++;
+            errors.Add($"Linha {lineNum}: Preço inválido '{priceStr}'.");
+            continue;
+        }
+
+        var qtyStr = parts[idxQtd].Trim();
+        if (!int.TryParse(qtyStr, out var qty))
+        {
+            skipped++;
+            errors.Add($"Linha {lineNum}: Quantidade inválida '{qtyStr}'.");
+            continue;
+        }
+
+        Guid? catId = null;
+        if (idxCatId != -1 && idxCatId < parts.Length)
+        {
+            var catIdStr = parts[idxCatId].Trim();
+            if (!string.IsNullOrWhiteSpace(catIdStr) && Guid.TryParse(catIdStr, out var parsedGuid))
+            {
+                catId = parsedGuid;
+            }
+        }
+
+        string? description = null;
+        if (idxDesc != -1 && idxDesc < parts.Length)
+        {
+            description = parts[idxDesc].Trim();
+        }
+
+        try
+        {
+            var product = new Product(name, price, qty)
+            {
+                CategoryId = catId,
+                Description = description
+            };
+            await stock.AddAsync(product);
+            imported++;
+        }
+        catch (Exception ex)
+        {
+            skipped++;
+            errors.Add($"Linha {lineNum}: {ex.Message}");
+        }
+    }
+
+    return Results.Ok(new { imported, skipped, errors });
+});
+
 // Configura o mapeamento de requisições de Categorias
 var catApi = app.MapGroup("/api/categories");
 

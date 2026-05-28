@@ -29,11 +29,13 @@ namespace EstoqueManager.Export
         public async Task<byte[]> GenerateCsvAsync(IEnumerable<Product> products)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("ID,Nome,Preço,Quantidade,CategoriaId,CriadoEm,AtualizadoEm");
+            sb.AppendLine("ID,Nome,Preço,Quantidade,CategoriaId,Descrição,CriadoEm,AtualizadoEm");
             foreach (var p in products)
             {
-                var name = p.Name.Contains(',') ? $"\"{p.Name}\"" : p.Name;
-                sb.AppendLine($"{p.Id},{name},{p.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)},{p.Quantity},{p.CategoryId},{p.CreatedAt:o},{p.UpdatedAt?.ToString("o") ?? ""}");
+                var name = p.Name.Contains(',') || p.Name.Contains('"') ? $"\"{p.Name.Replace("\"", "\"\"")}\"" : p.Name;
+                var descValue = p.Description ?? string.Empty;
+                var desc = descValue.Contains(',') || descValue.Contains('"') || descValue.Contains('\n') || descValue.Contains('\r') ? $"\"{descValue.Replace("\"", "\"\"")}\"" : descValue;
+                sb.AppendLine($"{p.Id},{name},{p.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)},{p.Quantity},{p.CategoryId},{desc},{p.CreatedAt:o},{p.UpdatedAt?.ToString("o") ?? ""}");
             }
             var utf8 = new UTF8Encoding(true);
             return await Task.FromResult(utf8.GetBytes(sb.ToString()));

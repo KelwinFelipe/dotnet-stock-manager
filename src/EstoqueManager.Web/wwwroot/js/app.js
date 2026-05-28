@@ -149,11 +149,19 @@ class UIManager {
         
         // Search
         this.searchInput = document.getElementById('search-input');
+        this.stockAlertBanner = document.getElementById('stock-alert-banner');
         
         // Modals
         this.productModal = document.getElementById('product-modal');
         this.quantityModal = document.getElementById('quantity-modal');
         this.categoryModal = document.getElementById('category-modal');
+        this.importModal = document.getElementById('import-modal');
+        this.detailModal = document.getElementById('detail-modal');
+        
+        // Forms
+        this.importForm = document.getElementById('import-form');
+        this.importFile = document.getElementById('import-file');
+        this.importResult = document.getElementById('import-result');
         
         // Forms
         this.productForm = document.getElementById('product-form');
@@ -167,6 +175,7 @@ class UIManager {
         this.paginationInfo = document.getElementById('pagination-info');
         this.btnPrevPage = document.getElementById('btn-prev-page');
         this.btnNextPage = document.getElementById('btn-next-page');
+        this.pageSizeSelect = document.getElementById('page-size-select');
 
         // Container de Logs
         this.logsContainer = document.getElementById('logs-container');
@@ -183,6 +192,20 @@ class UIManager {
             debounceTimer = setTimeout(() => this.loadProducts(e.target.value), 300);
         });
 
+        // Clique na linha para Detalhes
+        if (this.tableBody) {
+            this.tableBody.addEventListener('click', (e) => {
+                const tr = e.target.closest('tr');
+                if (!tr) return;
+                if (e.target.closest('.action-cell') || e.target.closest('button')) return;
+                
+                const productId = tr.getAttribute('data-id');
+                if (productId) {
+                    this.openDetailModal(productId);
+                }
+            });
+        }
+
         // Eventos de Paginação
         this.btnPrevPage.addEventListener('click', () => {
             if (this.currentPage > 1) {
@@ -197,6 +220,14 @@ class UIManager {
                 this.renderTable();
             }
         });
+        
+        if (this.pageSizeSelect) {
+            this.pageSizeSelect.addEventListener('change', (e) => {
+                this.pageSize = parseInt(e.target.value, 10);
+                this.currentPage = 1;
+                this.renderTable();
+            });
+        }
 
         // Evento de Atualização de Logs
         document.getElementById('btn-refresh-logs').addEventListener('click', () => this.loadLogs());
@@ -214,6 +245,13 @@ class UIManager {
             this.renderCategoriesList();
         });
 
+        document.getElementById('btn-import-csv').addEventListener('click', () => {
+            this.importForm.reset();
+            this.importResult.classList.add('hidden');
+            this.importResult.innerHTML = '';
+            this.importModal.classList.remove('hidden');
+        });
+
         // Close Modals
         document.getElementById('btn-close-modal').addEventListener('click', () => this.productModal.classList.add('hidden'));
         document.getElementById('btn-cancel-modal').addEventListener('click', () => this.productModal.classList.add('hidden'));
@@ -223,6 +261,14 @@ class UIManager {
 
         document.getElementById('btn-close-category-modal').addEventListener('click', () => this.categoryModal.classList.add('hidden'));
         document.getElementById('btn-done-category-modal').addEventListener('click', () => this.categoryModal.classList.add('hidden'));
+
+        // Import Modal Close
+        document.getElementById('btn-close-import-modal').addEventListener('click', () => this.importModal.classList.add('hidden'));
+        document.getElementById('btn-cancel-import-modal').addEventListener('click', () => this.importModal.classList.add('hidden'));
+
+        // Detail Modal Close
+        document.getElementById('btn-close-detail-modal').addEventListener('click', () => this.detailModal.classList.add('hidden'));
+        document.getElementById('btn-close-detail').addEventListener('click', () => this.detailModal.classList.add('hidden'));
 
         // Exports
         document.getElementById('btn-export-csv').addEventListener('click', () => {
@@ -293,7 +339,8 @@ class UIManager {
                 name: document.getElementById('product-name').value,
                 price: parseFloat(document.getElementById('product-price').value),
                 quantity: parseInt(document.getElementById('product-quantity').value, 10),
-                categoryId: categoryId || null
+                categoryId: categoryId || null,
+                description: document.getElementById('product-description').value
             };
             
             try {
@@ -309,6 +356,52 @@ class UIManager {
                 this.loadLogs();
             } catch (error) {
                 this.showToast(error.message, 'error');
+            }
+        });
+
+        this.importForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = this.importFile.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('csvFile', file);
+
+            try {
+                this.importResult.classList.remove('hidden');
+                this.importResult.innerHTML = '<span style="color: var(--text-muted);">Processando importação...</span>';
+                
+                const response = await fetch('/api/products/import/csv', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({ message: 'Erro ao processar CSV.' }));
+                    throw new Error(errData.message || 'Falha na importação.');
+                }
+
+                const result = await response.json();
+                
+                let feedback = `<span style="color: var(--success); font-weight: bold;">Importação concluída!</span><br>`;
+                feedback += `Importados: ${result.imported}<br>`;
+                feedback += `Ignorados/Erro: ${result.skipped}<br>`;
+                
+                if (result.errors && result.errors.length > 0) {
+                    feedback += `<br><span style="color: var(--danger); font-weight: bold;">Erros detalhados:</span><br>`;
+                    result.errors.forEach(err => {
+                        feedback += `<span style="color: var(--danger);">${err}</span><br>`;
+                    });
+                }
+
+                this.importResult.innerHTML = feedback;
+                this.showToast(`Importação concluída: ${result.imported} importados.`, 'success');
+                
+                this.loadProducts(this.searchInput.value);
+                this.loadLogs();
+            } catch (err) {
+                this.importResult.innerHTML = `<span style="color: var(--danger);">Erro: ${err.message}</span>`;
+                this.showToast(err.message, 'error');
             }
         });
 
@@ -477,6 +570,16 @@ class UIManager {
         this.currentPage = 1;
         this.renderTable();
         this.updateDashboard();
+
+        if (this.stockAlertBanner) {
+            const outOfStock = this.allProducts.filter(p => p.quantity === 0);
+            if (outOfStock.length > 0) {
+                this.stockAlertBanner.innerHTML = `⚠️ <strong>Alerta:</strong> Existem <strong>${outOfStock.length}</strong> produto(s) com estoque zerado no sistema!`;
+                this.stockAlertBanner.classList.remove('hidden');
+            } else {
+                this.stockAlertBanner.classList.add('hidden');
+            }
+        }
     }
 
     async updateDashboard() {
@@ -608,6 +711,8 @@ class UIManager {
             
             pagedProducts.forEach(product => {
                 const tr = document.createElement('tr');
+                tr.setAttribute('data-id', product.id);
+                tr.style.cursor = 'pointer';
                 
                 // Badge de estoque
                 let stockBadge = '';
@@ -646,6 +751,22 @@ class UIManager {
         }
     }
 
+    openDetailModal(id) {
+        const product = this.products.find(p => p.id === id);
+        if (product) {
+            const catName = product.categoryId ? (this.categories.find(c => c.id === product.categoryId)?.name || 'Sem Categoria') : 'Sem Categoria';
+            document.getElementById('detail-id').textContent = product.id;
+            document.getElementById('detail-name').textContent = product.name;
+            document.getElementById('detail-price').textContent = formatCurrency(product.price);
+            document.getElementById('detail-quantity').textContent = product.quantity;
+            document.getElementById('detail-category').textContent = catName;
+            document.getElementById('detail-description').textContent = product.description || 'Nenhuma descrição informada.';
+            document.getElementById('detail-created').textContent = formatDate(product.createdAt);
+            document.getElementById('detail-updated').textContent = formatDate(product.updatedAt);
+            this.detailModal.classList.remove('hidden');
+        }
+    }
+
     openEditProductModal(id) {
         const product = this.products.find(p => p.id === id);
         if (product) {
@@ -654,6 +775,7 @@ class UIManager {
             document.getElementById('product-name').value = product.name;
             document.getElementById('product-price').value = product.price;
             document.getElementById('product-quantity').value = product.quantity;
+            document.getElementById('product-description').value = product.description || '';
             this.productCategorySelect.value = product.categoryId || '';
             this.productModal.classList.remove('hidden');
         }

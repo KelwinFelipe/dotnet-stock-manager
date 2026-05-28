@@ -555,3 +555,35 @@ th.sortable.active .sort-indicator {
 .kpi-value.animate {
     animation: fadeInUp 0.4s ease forwards;
 }
+
+/* Stock Alert Banner */
+.stock-alert-banner {
+    margin-top: 20px;
+    margin-bottom: -20px;
+    padding: 16px 24px;
+    background: linear-gradient(135deg, rgba(239, 83, 80, 0.2) 0%, rgba(255, 202, 40, 0.1) 100%);
+    border: 1px solid rgba(239, 83, 80, 0.3);
+    border-radius: var(--radius-md);
+    color: var(--text-highlight);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 20px rgba(239, 83, 80, 0.15);
+    animation: pulseGlow 2s infinite ease-in-out;
+}
+
+@keyframes pulseGlow {
+    0% {
+        box-shadow: 0 4px 20px rgba(239, 83, 80, 0.15);
+        border-color: rgba(239, 83, 80, 0.3);
+    }
+    50% {
+        box-shadow: 0 4px 25px rgba(239, 83, 80, 0.3);
+        border-color: rgba(239, 83, 80, 0.5);
+    }
+    100% {
+        box-shadow: 0 4px 20px rgba(239, 83, 80, 0.15);
+        border-color: rgba(239, 83, 80, 0.3);
+    }
+}

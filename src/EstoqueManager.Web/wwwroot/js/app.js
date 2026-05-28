@@ -130,6 +130,8 @@ class UIManager {
         this.barChart = null;
         this.currentPage = 1;
         this.pageSize = 10;
+        this.sortField = 'name';
+        this.sortDirection = 'asc';
         this.initElements();
         this.bindEvents();
         this.loadInitialData();
@@ -168,6 +170,9 @@ class UIManager {
 
         // Container de Logs
         this.logsContainer = document.getElementById('logs-container');
+
+        // Confirm Modal
+        this.confirmModal = document.getElementById('confirm-modal');
     }
 
     bindEvents() {
@@ -430,13 +435,17 @@ class UIManager {
     }
 
     async deleteCategory(id) {
-        if(confirm('Remover esta categoria? Produtos associados ficarão sem categoria.')) {
+        const confirmed = await this.showConfirmModal(
+            '🗑️ Remover Categoria',
+            'Remover esta categoria? Produtos associados ficarão <strong>sem categoria</strong>. Esta ação não pode ser desfeita.'
+        );
+        if (confirmed) {
             try {
                 await ApiService.deleteCategory(id);
                 this.showToast('Categoria removida.', 'success');
                 await this.loadCategories();
                 this.renderCategoriesList();
-                this.loadProducts(this.searchInput.value); // refresh table
+                this.loadProducts(this.searchInput.value);
                 this.loadLogs();
             } catch (e) {
                 this.showToast(e.message, 'error');
@@ -464,6 +473,7 @@ class UIManager {
         } else {
             this.products = [...this.allProducts];
         }
+        this.sortProducts();
         this.currentPage = 1;
         this.renderTable();
         this.updateDashboard();
@@ -472,19 +482,18 @@ class UIManager {
     async updateDashboard() {
         try {
             const stats = await ApiService.getDashboardStats();
-            this.kpiTotalItems.textContent = stats.totalItems;
-            this.kpiTotalValue.textContent = formatCurrency(stats.totalValue);
-            this.kpiLowStock.textContent = stats.lowStockCount;
+            this.animateCounter(this.kpiTotalItems, stats.totalItems, 700);
+            this.animateCounter(this.kpiTotalValue, stats.totalValue, 700, formatCurrency);
+            this.animateCounter(this.kpiLowStock, stats.lowStockCount, 700);
         } catch (e) {
             console.error('Erro ao buscar estatísticas do dashboard:', e);
             // Fallback em memória
             const totalItems = this.products.length;
             const totalValue = this.products.reduce((acc, p) => acc + (p.price * p.quantity), 0);
             const lowStock = this.products.filter(p => p.quantity < 10).length;
-
-            this.kpiTotalItems.textContent = totalItems;
-            this.kpiTotalValue.textContent = formatCurrency(totalValue);
-            this.kpiLowStock.textContent = lowStock;
+            this.animateCounter(this.kpiTotalItems, totalItems, 700);
+            this.animateCounter(this.kpiTotalValue, totalValue, 700, formatCurrency);
+            this.animateCounter(this.kpiLowStock, lowStock, 700);
         }
         
         this.renderCharts();
@@ -604,6 +613,14 @@ class UIManager {
                 let stockBadge = '';
                 if (product.quantity === 0) stockBadge = '<span class="badge badge-out">Sem Estoque</span>';
                 else if (product.quantity < 10) stockBadge = '<span class="badge badge-low">Baixo</span>';
+
+                // Barra de saúde do estoque
+                const stockPercent = Math.min(100, (product.quantity / 100) * 100);
+                const stockColor = product.quantity === 0
+                    ? 'var(--danger)'
+                    : product.quantity < 10
+                        ? 'var(--warning)'
+                        : 'var(--success)';
                 
                 const catName = product.categoryId ? (this.categories.find(c => c.id === product.categoryId)?.name || '-') : '-';
                 const dataDisplay = product.updatedAt ? `<div style="font-size:0.8rem;color:var(--text-muted)">Atualizado:<br>${formatDate(product.updatedAt)}</div>` : `<div style="font-size:0.8rem;color:var(--text-muted)">Criado:<br>${formatDate(product.createdAt)}</div>`;
@@ -613,7 +630,10 @@ class UIManager {
                     <td class="highlight-text">${product.name}</td>
                     <td>${catName}</td>
                     <td>${formatCurrency(product.price)}</td>
-                    <td>${product.quantity} ${stockBadge}</td>
+                    <td>
+                        <div>${product.quantity} ${stockBadge}</div>
+                        <div class="stock-bar-container"><div class="stock-bar" style="width: ${stockPercent}%; background: ${stockColor};"></div></div>
+                    </td>
                     <td>${dataDisplay}</td>
                     <td class="action-cell">
                         <button class="btn-icon edit" onclick="app.openEditProductModal('${product.id}')" title="Editar Produto">✏️</button>
@@ -651,7 +671,12 @@ class UIManager {
 
     async deleteProduct(id) {
         const product = this.products.find(p => p.id === id);
-        if (product && confirm(`Deseja realmente remover o produto '${product.name}'?`)) {
+        if (!product) return;
+        const confirmed = await this.showConfirmModal(
+            '🗑️ Remover Produto',
+            `Deseja realmente remover o produto <strong>${product.name}</strong>?<br><span style="font-size:0.85rem">Esta ação não pode ser desfeita.</span>`
+        );
+        if (confirmed) {
             try {
                 await ApiService.deleteProduct(id);
                 this.showToast('Produto removido com sucesso!', 'success');
@@ -661,6 +686,92 @@ class UIManager {
                 this.showToast(error.message, 'error');
             }
         }
+    }
+
+    // --- Ordenação por Colunas ---
+    toggleSort(field) {
+        if (this.sortField === field) {
+            this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.sortField = field;
+            this.sortDirection = 'asc';
+        }
+        this.updateSortIndicators();
+        this.sortProducts();
+        this.currentPage = 1;
+        this.renderTable();
+    }
+
+    updateSortIndicators() {
+        document.querySelectorAll('th.sortable').forEach(th => {
+            const field = th.dataset.sort;
+            const indicator = th.querySelector('.sort-indicator');
+            if (field === this.sortField) {
+                th.classList.add('active');
+                indicator.textContent = this.sortDirection === 'asc' ? '▲' : '▼';
+            } else {
+                th.classList.remove('active');
+                indicator.textContent = '▲';
+            }
+        });
+    }
+
+    sortProducts() {
+        const field = this.sortField;
+        const dir = this.sortDirection === 'asc' ? 1 : -1;
+        this.products.sort((a, b) => {
+            const aVal = a[field];
+            const bVal = b[field];
+            if (typeof aVal === 'string') {
+                return aVal.localeCompare(bVal, 'pt-BR') * dir;
+            }
+            return (aVal - bVal) * dir;
+        });
+    }
+
+    // --- Animação de Contagem KPI ---
+    animateCounter(element, target, duration = 700, formatter = null) {
+        const startTime = performance.now();
+        element.classList.remove('animate');
+        void element.offsetWidth; // force reflow para reiniciar animação CSS
+        element.classList.add('animate');
+        const tick = (now) => {
+            const elapsed = now - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+            const current = target * eased;
+            element.textContent = formatter ? formatter(current) : Math.round(current);
+            if (progress < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+    }
+
+    // --- Modal de Confirmação Customizado ---
+    showConfirmModal(title, message) {
+        return new Promise((resolve) => {
+            document.getElementById('confirm-modal-title').textContent = title;
+            document.getElementById('confirm-modal-message').innerHTML = message;
+            this.confirmModal.classList.remove('hidden');
+
+            const btnOk = document.getElementById('btn-ok-confirm');
+            const btnCancel = document.getElementById('btn-cancel-confirm');
+            const btnClose = document.getElementById('btn-close-confirm-modal');
+
+            const cleanup = (result) => {
+                this.confirmModal.classList.add('hidden');
+                btnOk.removeEventListener('click', onOk);
+                btnCancel.removeEventListener('click', onCancel);
+                btnClose.removeEventListener('click', onCancel);
+                resolve(result);
+            };
+
+            const onOk = () => cleanup(true);
+            const onCancel = () => cleanup(false);
+
+            btnOk.addEventListener('click', onOk);
+            btnCancel.addEventListener('click', onCancel);
+            btnClose.addEventListener('click', onCancel);
+        });
     }
 
     showLoading(show) {

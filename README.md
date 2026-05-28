@@ -1,66 +1,154 @@
-# Gerenciador de Estoque (Estoque Manager)
+# 📦 Estoque Manager
 
-Um sistema simples que expõe uma REST API desenvolvida em **C#** sobre a plataforma **.NET 10**, focado no controle de estoques de produtos.
-
-
+> Sistema de gerenciamento de estoque moderno e responsivo, construído com **.NET 10 Minimal API** e um frontend premium com estética **Glassmorphism**.
 
 ---
 
 ## 🚀 Tecnologias Utilizadas
 
-- **Linguagem:** C#
-- **Framework:** .NET 10.0 SDK
-- **Persistência:** Serialização local em JSON (`System.Text.Json`) armazenada em `products.json`
-- **Arquitetura:** Camadas físicas separadas (Core, Data, Web)
+| Camada | Tecnologia |
+|---|---|
+| Backend | C# / .NET 10 / ASP.NET Core Minimal API |
+| Frontend | HTML5, CSS3 (Glassmorphism), JavaScript ES2023 |
+| Gráficos | Chart.js |
+| Persistência | `System.Text.Json` (arquivos `.json` locais) |
+| Exportação | QuestPDF (PDF), CSV nativo, XML nativo |
+| Testes | xUnit (12 testes de domínio e serviço) |
+| Contêiner | Docker / Docker Compose |
+| Auditoria | Log em arquivo (`app.log`) |
 
 ---
 
-## 🏛️ Estrutura de Projeto
+## 🏛️ Estrutura do Projeto
 
 ```
-estoque-manager/
+dotnet-stock-manager/
 │
 ├── src/
-│   ├── EstoqueManager.Web/    # Camada de apresentação (REST API)
-│   ├── EstoqueManager.Core/       # Camada de domínio (entidades Product, Category)
-│   └── EstoqueManager.Data/       # Camada de acesso a dados (StockService, CategoryService)
+│   ├── EstoqueManager.Web/          # API REST + Frontend (wwwroot)
+│   │   └── wwwroot/
+│   │       ├── index.html           # SPA principal
+│   │       ├── css/style.css        # Design system Glassmorphism
+│   │       └── js/app.js            # Lógica completa da UI
+│   ├── EstoqueManager.Core/         # Entidades de domínio (Product, Category)
+│   ├── EstoqueManager.Data/         # Serviços de dados (StockService, CategoryService, LogService)
+│   ├── EstoqueManager.Export/       # Exportação PDF/CSV/XML (QuestPDF)
+│   └── EstoqueManager.Tests/        # Testes unitários (xUnit)
 │
-├── README.md                     # Documentação do projeto
-├── .gitignore                    # Arquivos a serem ignorados no Git
-└── estoque-manager.sln            # Solução C# que reúne os módulos
+├── Dockerfile                       # Build multi-stage Docker
+├── docker-compose.yml               # Orquestração com volume de dados
+├── .dockerignore                    # Ignora artefatos desnecessários
+└── estoque-manager.sln              # Solução C#
 ```
-
-### Detalhamento das Camadas
-1. **EstoqueManager.Core** – Contém as entidades de domínio `Product` e `Category`, incluindo propriedades como `CreatedAt`, `UpdatedAt` e `CategoryId`.
-2. **EstoqueManager.Data** – Implementa `StockService` e `CategoryService`, responsáveis pela persistência, auditoria e lógica de negócio (CRUD completo, validações e controle de histórico).
-3. **EstoqueManager.Web** – Exposição de uma REST API com endpoints para gerenciamento de estoque, utilizando ASP.NET Core.
 
 ---
 
 ## ✨ Funcionalidades Implementadas
 
-- **Cadastro de Produto** – Permite registrar novos itens, informando nome, preço e quantidade inicial de forma simples e rápida.
-- **Listagem de Estoque** – Exibe, em uma tabela agradável, todos os produtos cadastrados com seus GUIDs, facilitando a visualização e o controle.
-- **Busca por Nome** – Encontre produtos digitando parte ou a totalidade do nome, sem se preocupar com maiúsculas/minúsculas.
-- **Atualização de Estoque** – Ajuste a quantidade disponível de um produto específico, utilizando seu identificador único.
-- **Remoção de Produto** – Exclua itens com uma confirmação segura, evitando exclusões acidentais.
-- **Persistência Não‑Volátil (JSON)** – Todos os dados são salvos automaticamente em `products.json`, garantindo que nenhuma informação seja perdida entre sessões.
+### Gestão de Produtos
+- ✅ **Cadastro** de produtos com nome, preço, quantidade e categoria
+- ✅ **Listagem** paginada (10 itens/página) com busca em tempo real
+- ✅ **Ordenação** por coluna (Nome, Preço, Estoque) com indicador visual ▲/▼
+- ✅ **Edição** completa via modal Glassmorphism
+- ✅ **Atualização rápida** de quantidade em estoque
+- ✅ **Remoção** com modal de confirmação customizado (sem `alert()` nativo)
+- ✅ **Filtro** por categoria no select da barra de busca
+
+### Dashboard & Analytics
+- ✅ **KPIs animados** (Total de Produtos, Valor em Estoque, Estoque Baixo)
+- ✅ **Gráfico Doughnut** — produtos por categoria (Chart.js)
+- ✅ **Gráfico de Barras** — valor em estoque por categoria (Chart.js)
+- ✅ **Barra de saúde do estoque** por produto (🔴→🟡→🟢)
+
+### Categorias
+- ✅ CRUD completo de categorias via modal dedicado
+
+### Exportação de Dados
+- ✅ **PDF** — relatório profissional com QuestPDF
+- ✅ **CSV** — compatível com Excel/Sheets
+- ✅ **XML** — formato estruturado para integrações
+
+### Trilha de Auditoria
+- ✅ **Log automático** de todas as operações (adição, edição, remoção)
+- ✅ **Visualização em tempo real** na seção "Trilha de Auditoria" do frontend
+- ✅ **Endpoint REST** `/api/dashboard/logs` para as últimas 30 entradas
+
+### UX Premium
+- ✅ **Glassmorphism** com `backdrop-filter: blur` em todos os componentes
+- ✅ **Toast notifications** animadas (sucesso, erro, aviso)
+- ✅ **Modal de confirmação** customizado com botão de perigo estilizado
+- ✅ **Animação de contagem** nos KPIs ao carregar (ease-out cubic)
+- ✅ **Responsivo** — adaptado para mobile e desktop
 
 ---
 
-## ⚙️ Como Executar o Projeto
+## ⚙️ Como Executar
 
-### Pré-requisitos:
-- Instalar o [.NET 10.0 SDK](https://dotnet.microsoft.com/download) em sua máquina.
+### Pré-requisitos
+- [.NET 10.0 SDK](https://dotnet.microsoft.com/download)
 
-### Passos para compilação e execução:
+### Execução local
+```bash
+# 1. Restaurar e compilar
+dotnet build
 
-1. Abra seu terminal na pasta raiz do repositório (`dotnet-stock-manager`).
-2. Restaure as dependências e compile a solução:
-   ```bash
-   dotnet build
-   ```
-3. Execute a API REST:
-   ```bash
-   dotnet run --project src/EstoqueManager.Web/EstoqueManager.Web.csproj
-   ```
+# 2. Executar a aplicação
+dotnet run --project src/EstoqueManager.Web/EstoqueManager.Web.csproj
+```
+Acesse em: `http://localhost:5000`
+
+---
+
+## 🐳 Docker
+
+```bash
+# Build + Run com Docker Compose (volume persistente para dados)
+docker compose up --build
+
+# Ou manualmente
+docker build -t estoque-manager .
+docker run -p 8080:8080 -v estoque-data:/app/data estoque-manager
+```
+Acesse em: `http://localhost:8080`
+
+---
+
+## 🧪 Testes
+
+```bash
+dotnet test
+```
+
+- 12 testes unitários cobrindo entidades de domínio (`Product`, `Category`) e serviços (`StockService`, `LogService`)
+
+---
+
+## 📡 API REST — Endpoints
+
+### Produtos `/api/products`
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/` | Listar todos os produtos |
+| `GET` | `/{id}` | Buscar produto por ID |
+| `GET` | `/search?q={termo}` | Buscar por nome |
+| `POST` | `/` | Cadastrar produto |
+| `PUT` | `/{id}` | Atualizar produto |
+| `PUT` | `/{id}/quantity` | Atualizar quantidade |
+| `DELETE` | `/{id}` | Remover produto |
+| `GET` | `/export/pdf` | Exportar PDF |
+| `GET` | `/export/csv` | Exportar CSV |
+| `GET` | `/export/xml` | Exportar XML |
+
+### Categorias `/api/categories`
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/` | Listar categorias |
+| `POST` | `/` | Criar categoria |
+| `PUT` | `/{id}` | Atualizar categoria |
+| `DELETE` | `/{id}` | Remover categoria |
+
+### Dashboard `/api/dashboard`
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/stats` | KPIs (total, valor, estoque baixo) |
+| `GET` | `/logs` | Últimas 30 entradas de auditoria |

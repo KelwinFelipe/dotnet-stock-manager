@@ -106,6 +106,18 @@ class ApiService {
         if (!response.ok) throw new Error('Falha ao remover categoria');
         return true;
     }
+
+    static async getDashboardStats() {
+        const response = await fetch('/api/dashboard/stats');
+        if (!response.ok) throw new Error('Falha ao obter estatísticas do dashboard');
+        return response.json();
+    }
+
+    static async getDashboardLogs() {
+        const response = await fetch('/api/dashboard/logs');
+        if (!response.ok) throw new Error('Falha ao obter logs do dashboard');
+        return response.json();
+    }
 }
 
 // UI Manager
@@ -116,6 +128,8 @@ class UIManager {
         this.allProducts = [];
         this.pieChart = null;
         this.barChart = null;
+        this.currentPage = 1;
+        this.pageSize = 10;
         this.initElements();
         this.bindEvents();
         this.loadInitialData();
@@ -145,6 +159,15 @@ class UIManager {
         this.productCategorySelect = document.getElementById('product-category');
         this.categoriesTbody = document.getElementById('categories-tbody');
         this.categoryFilterSelect = document.getElementById('category-filter');
+        
+        // Elementos de Paginação
+        this.paginationControls = document.getElementById('pagination-controls');
+        this.paginationInfo = document.getElementById('pagination-info');
+        this.btnPrevPage = document.getElementById('btn-prev-page');
+        this.btnNextPage = document.getElementById('btn-next-page');
+
+        // Container de Logs
+        this.logsContainer = document.getElementById('logs-container');
     }
 
     bindEvents() {
@@ -154,6 +177,24 @@ class UIManager {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => this.loadProducts(e.target.value), 300);
         });
+
+        // Eventos de Paginação
+        this.btnPrevPage.addEventListener('click', () => {
+            if (this.currentPage > 1) {
+                this.currentPage--;
+                this.renderTable();
+            }
+        });
+        this.btnNextPage.addEventListener('click', () => {
+            const maxPage = Math.ceil(this.products.length / this.pageSize);
+            if (this.currentPage < maxPage) {
+                this.currentPage++;
+                this.renderTable();
+            }
+        });
+
+        // Evento de Atualização de Logs
+        document.getElementById('btn-refresh-logs').addEventListener('click', () => this.loadLogs());
 
         // Modals Opening
         document.getElementById('btn-new-product').addEventListener('click', () => {
@@ -223,6 +264,7 @@ class UIManager {
                 await this.loadCategories();
                 this.renderCategoriesList();
                 this.loadProducts(this.searchInput.value); // refresh products to show new category name if updated
+                this.loadLogs();
             } catch (err) {
                 this.showToast(err.message, 'error');
             }
@@ -259,6 +301,7 @@ class UIManager {
                 }
                 this.productModal.classList.add('hidden');
                 this.loadProducts(this.searchInput.value);
+                this.loadLogs();
             } catch (error) {
                 this.showToast(error.message, 'error');
             }
@@ -274,6 +317,7 @@ class UIManager {
                 this.showToast('Quantidade atualizada com sucesso!', 'success');
                 this.quantityModal.classList.add('hidden');
                 this.loadProducts(this.searchInput.value);
+                this.loadLogs();
             } catch (error) {
                 this.showToast(error.message, 'error');
             }
@@ -283,6 +327,53 @@ class UIManager {
     async loadInitialData() {
         await this.loadCategories();
         await this.loadProducts();
+        await this.loadLogs();
+    }
+
+    async loadLogs() {
+        try {
+            const logs = await ApiService.getDashboardLogs();
+            this.renderLogs(logs);
+        } catch (e) {
+            console.error('Erro ao carregar logs:', e);
+            this.logsContainer.innerHTML = '<div style="color: var(--danger);">Falha ao carregar logs de auditoria.</div>';
+        }
+    }
+
+    renderLogs(logs) {
+        this.logsContainer.innerHTML = '';
+        if (logs.length === 0) {
+            this.logsContainer.innerHTML = '<div style="color: var(--text-muted);">Nenhuma atividade registrada ainda.</div>';
+            return;
+        }
+        
+        logs.forEach(log => {
+            const div = document.createElement('div');
+            div.style.padding = '4px 0';
+            div.style.borderBottom = '1px solid rgba(255, 255, 255, 0.05)';
+            
+            let formattedLog = log;
+            if (log.includes('PRODUTO ADICIONADO')) {
+                formattedLog = log.replace('PRODUTO ADICIONADO', '<span style="color: var(--success); font-weight: bold;">PRODUTO ADICIONADO</span>');
+            } else if (log.includes('ESTOQUE ATUALIZADO')) {
+                formattedLog = log.replace('ESTOQUE ATUALIZADO', '<span style="color: var(--warning); font-weight: bold;">ESTOQUE ATUALIZADO</span>');
+            } else if (log.includes('PRODUTO ATUALIZADO')) {
+                formattedLog = log.replace('PRODUTO ATUALIZADO', '<span style="color: var(--accent); font-weight: bold;">PRODUTO ATUALIZADO</span>');
+            } else if (log.includes('PRODUTO REMOVIDO')) {
+                formattedLog = log.replace('PRODUTO REMOVIDO', '<span style="color: var(--danger); font-weight: bold;">PRODUTO REMOVIDO</span>');
+            } else if (log.includes('CATEGORIA ADICIONADA')) {
+                formattedLog = log.replace('CATEGORIA ADICIONADA', '<span style="color: var(--success); font-weight: bold;">CATEGORIA ADICIONADA</span>');
+            } else if (log.includes('CATEGORIA ATUALIZADA')) {
+                formattedLog = log.replace('CATEGORIA ATUALIZADA', '<span style="color: var(--accent); font-weight: bold;">CATEGORIA ATUALIZADA</span>');
+            } else if (log.includes('CATEGORIA REMOVIDA')) {
+                formattedLog = log.replace('CATEGORIA REMOVIDA', '<span style="color: var(--danger); font-weight: bold;">CATEGORIA REMOVIDA</span>');
+            }
+            
+            div.innerHTML = formattedLog;
+            this.logsContainer.appendChild(div);
+        });
+        
+        this.logsContainer.scrollTop = this.logsContainer.scrollHeight;
     }
 
     async loadCategories() {
@@ -346,6 +437,7 @@ class UIManager {
                 await this.loadCategories();
                 this.renderCategoriesList();
                 this.loadProducts(this.searchInput.value); // refresh table
+                this.loadLogs();
             } catch (e) {
                 this.showToast(e.message, 'error');
             }
@@ -372,18 +464,28 @@ class UIManager {
         } else {
             this.products = [...this.allProducts];
         }
+        this.currentPage = 1;
         this.renderTable();
         this.updateDashboard();
     }
 
-    updateDashboard() {
-        const totalItems = this.products.length;
-        const totalValue = this.products.reduce((acc, p) => acc + (p.price * p.quantity), 0);
-        const lowStock = this.products.filter(p => p.quantity < 10).length;
+    async updateDashboard() {
+        try {
+            const stats = await ApiService.getDashboardStats();
+            this.kpiTotalItems.textContent = stats.totalItems;
+            this.kpiTotalValue.textContent = formatCurrency(stats.totalValue);
+            this.kpiLowStock.textContent = stats.lowStockCount;
+        } catch (e) {
+            console.error('Erro ao buscar estatísticas do dashboard:', e);
+            // Fallback em memória
+            const totalItems = this.products.length;
+            const totalValue = this.products.reduce((acc, p) => acc + (p.price * p.quantity), 0);
+            const lowStock = this.products.filter(p => p.quantity < 10).length;
 
-        this.kpiTotalItems.textContent = totalItems;
-        this.kpiTotalValue.textContent = formatCurrency(totalValue);
-        this.kpiLowStock.textContent = lowStock;
+            this.kpiTotalItems.textContent = totalItems;
+            this.kpiTotalValue.textContent = formatCurrency(totalValue);
+            this.kpiLowStock.textContent = lowStock;
+        }
         
         this.renderCharts();
     }
@@ -475,10 +577,27 @@ class UIManager {
         
         if (this.products.length === 0) {
             this.emptyState.classList.remove('hidden');
+            this.paginationControls.classList.add('hidden');
         } else {
             this.emptyState.classList.add('hidden');
             
-            this.products.forEach(product => {
+            // Lógica de Paginação
+            const totalItems = this.products.length;
+            const maxPage = Math.ceil(totalItems / this.pageSize) || 1;
+            if (this.currentPage > maxPage) this.currentPage = maxPage;
+            
+            const startIdx = (this.currentPage - 1) * this.pageSize;
+            const endIdx = Math.min(startIdx + this.pageSize, totalItems);
+            const pagedProducts = this.products.slice(startIdx, endIdx);
+            
+            // Habilitar/desabilitar botões
+            this.btnPrevPage.disabled = this.currentPage === 1;
+            this.btnNextPage.disabled = this.currentPage === maxPage;
+            
+            this.paginationInfo.textContent = `Exibindo ${totalItems === 0 ? 0 : startIdx + 1}-${endIdx} de ${totalItems} produtos`;
+            this.paginationControls.classList.remove('hidden');
+            
+            pagedProducts.forEach(product => {
                 const tr = document.createElement('tr');
                 
                 // Badge de estoque
@@ -537,6 +656,7 @@ class UIManager {
                 await ApiService.deleteProduct(id);
                 this.showToast('Produto removido com sucesso!', 'success');
                 this.loadProducts(this.searchInput.value);
+                this.loadLogs();
             } catch (error) {
                 this.showToast(error.message, 'error');
             }

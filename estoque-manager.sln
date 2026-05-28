@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EstoqueManager.Web", "src\E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EstoqueManager.ConsoleClient", "src\EstoqueManager.ConsoleClient\EstoqueManager.ConsoleClient.csproj", "{54B94B01-A837-4155-918A-FD5E08CFB66F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EstoqueManager.Tests", "src\EstoqueManager.Tests\EstoqueManager.Tests.csproj", "{1C903A6B-810D-40EF-A697-9AE4F183D33A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -71,6 +73,18 @@ Global
 		{54B94B01-A837-4155-918A-FD5E08CFB66F}.Release|x64.Build.0 = Release|Any CPU
 		{54B94B01-A837-4155-918A-FD5E08CFB66F}.Release|x86.ActiveCfg = Release|Any CPU
 		{54B94B01-A837-4155-918A-FD5E08CFB66F}.Release|x86.Build.0 = Release|Any CPU
+		{1C903A6B-810D-40EF-A697-9AE4F183D33A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1C903A6B-810D-40EF-A697-9AE4F183D33A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1C903A6B-810D-40EF-A697-9AE4F183D33A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1C903A6B-810D-40EF-A697-9AE4F183D33A}.Debug|x64.Build.0 = Debug|Any CPU
+		{1C903A6B-810D-40EF-A697-9AE4F183D33A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1C903A6B-810D-40EF-A697-9AE4F183D33A}.Debug|x86.Build.0 = Debug|Any CPU
+		{1C903A6B-810D-40EF-A697-9AE4F183D33A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1C903A6B-810D-40EF-A697-9AE4F183D33A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1C903A6B-810D-40EF-A697-9AE4F183D33A}.Release|x64.ActiveCfg = Release|Any CPU
+		{1C903A6B-810D-40EF-A697-9AE4F183D33A}.Release|x64.Build.0 = Release|Any CPU
+		{1C903A6B-810D-40EF-A697-9AE4F183D33A}.Release|x86.ActiveCfg = Release|Any CPU
+		{1C903A6B-810D-40EF-A697-9AE4F183D33A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -78,5 +92,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{2B5BFEFB-5E1F-4F44-826C-4B63C6BE876D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{54B94B01-A837-4155-918A-FD5E08CFB66F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{1C903A6B-810D-40EF-A697-9AE4F183D33A} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

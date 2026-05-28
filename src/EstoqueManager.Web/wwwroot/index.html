@@ -82,11 +82,32 @@
                     <!-- Linhas injetadas via JS -->
                 </tbody>
             </table>
+            <div id="pagination-controls" class="pagination-container hidden" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-top: 1px solid var(--border-color); flex-wrap: wrap; gap: 12px;">
+                <span id="pagination-info" style="font-size: 0.9rem; color: var(--text-muted);">Exibindo 0-0 de 0 produtos</span>
+                <div style="display: flex; gap: 8px;">
+                    <button id="btn-prev-page" class="btn-secondary" style="padding: 6px 16px; font-size: 0.85rem; border-radius: var(--radius-md);">Anterior</button>
+                    <button id="btn-next-page" class="btn-secondary" style="padding: 6px 16px; font-size: 0.85rem; border-radius: var(--radius-md);">Próximo</button>
+                </div>
+            </div>
             <div id="loading-spinner" class="spinner-container">
                 <div class="spinner"></div>
             </div>
             <div id="empty-state" class="empty-state hidden">
                 <p>Nenhum produto encontrado.</p>
+            </div>
+        </section>
+
+        <!-- Logs de Auditoria / Atividades Recentes -->
+        <section class="logs-section glass-card" style="padding: 24px; margin-bottom: 60px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="font-size: 1.2rem; color: var(--text-highlight); display: flex; align-items: center; gap: 8px;">
+                    📋 Trilha de Auditoria Recente
+                </h3>
+                <button id="btn-refresh-logs" class="btn-icon" title="Atualizar Logs" style="font-size: 1rem;">🔄</button>
+            </div>
+            <div id="logs-container" style="max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.85rem; padding: 12px 16px; background: rgba(0, 0, 0, 0.25); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px;">
+                <!-- Logs injetados via JS -->
+                <div style="color: var(--text-muted);">Carregando logs...</div>
             </div>
         </section>
     </main>

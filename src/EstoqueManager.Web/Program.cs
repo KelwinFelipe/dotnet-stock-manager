@@ -245,6 +245,12 @@ dashApi.MapGet("/stats", (IStockService stock) =>
     return Results.Ok(new { TotalItems = totalItems, TotalValue = totalValue, LowStockCount = lowStock });
 });
 
+dashApi.MapGet("/logs", async () =>
+{
+    var logs = await LogService.ReadLastLogsAsync(30);
+    return Results.Ok(logs);
+});
+
 // Fallback para SPA - qualquer rota não mapeada para arquivo físico cai no index.html
 app.MapFallbackToFile("index.html");
 

@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 using EstoqueManager.Export;
 using System.Text;
+using System.Globalization;
+using System.IO;
+using System.Collections.Generic;
 var builder = WebApplication.CreateBuilder(args);
 
 // Configuração de CORS para permitir consumo do frontend no mesmo host
@@ -69,7 +72,8 @@ api.MapPost("/", async (ProductInputModel model, IStockService stock) =>
     {
         var product = new Product(model.Name, model.Price, model.Quantity)
         {
-            CategoryId = model.CategoryId
+            CategoryId = model.CategoryId,
+            Description = model.Description
         };
         await stock.AddAsync(product);
         return Results.Created($"/api/products/{product.Id}", product);
@@ -122,7 +126,8 @@ api.MapPut("/{id:guid}", async (Guid id, ProductInputModel model, IStockService 
     {
         var product = new Product(model.Name, model.Price, model.Quantity)
         {
-            CategoryId = model.CategoryId
+            CategoryId = model.CategoryId,
+            Description = model.Description
         };
         
         var success = await stock.UpdateProductAsync(id, product);
@@ -268,6 +273,8 @@ public class ProductInputModel
 
     [Range(0, int.MaxValue, ErrorMessage = "A quantidade não pode ser negativa.")]
     public int Quantity { get; set; }
+    
+    public string? Description { get; set; }
     
     public Guid? CategoryId { get; set; }
 }

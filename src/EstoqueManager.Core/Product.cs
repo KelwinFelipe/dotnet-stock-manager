@@ -45,6 +45,11 @@ public class Product
     }
 
     /// <summary>
+    /// Descrição detalhada do produto.
+    /// </summary>
+    public string? Description { get; set; }
+
+    /// <summary>
     /// Quantidade de itens disponíveis em estoque.
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException">Lançada caso a quantidade seja negativa.</exception>

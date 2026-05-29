@@ -59,5 +59,26 @@ namespace EstoqueManager.Tests
                 Assert.Equal(expected[i], result[i]);
             }
         }
+        [Fact]
+        public async Task ExportService_GenerateXml_ShouldProduceValidXml()
+        {
+            // Arrange
+            IExportService exportService = new ExportService();
+            var products = new[]
+            {
+                new Product("Gamer Mouse", 150.00m, 10) { Description = "Red LED, 2400 DPI" }
+            };
+
+            // Act
+            var xmlContent = await exportService.GenerateXmlAsync(products);
+
+            // Assert
+            Assert.NotEmpty(xmlContent);
+            Assert.Contains("<Product>", xmlContent);
+            Assert.Contains("<Name>Gamer Mouse</Name>", xmlContent);
+            Assert.Contains("<Price>150.00</Price>", xmlContent);
+            Assert.Contains("<Quantity>10</Quantity>", xmlContent);
+        }
     }
 }
+

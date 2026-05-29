@@ -587,3 +587,21 @@ th.sortable.active .sort-indicator {
         border-color: rgba(239, 83, 80, 0.3);
     }
 }
+
+/* Inactive (Soft Deleted) Products styling */
+tbody tr.inactive-row {
+    opacity: 0.5;
+    background: rgba(255, 255, 255, 0.01);
+}
+tbody tr.inactive-row:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+.badge-inactive {
+    background: rgba(158, 158, 158, 0.15);
+    color: var(--text-muted);
+}
+.badge-active {
+    background: rgba(0, 191, 165, 0.15);
+    color: var(--accent);
+}
+

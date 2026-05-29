@@ -14,7 +14,22 @@ public class Category
     /// <summary>
     /// Human‑readable name of the category.
     /// </summary>
-    public string Name { get; set; } = string.Empty;
+    private string _name = string.Empty;
+
+    /// <summary>
+    /// Human‑readable name of the category.
+    /// </summary>
+    /// <exception cref="ArgumentException">Thrown when name is null, empty or whitespace.</exception>
+    public string Name
+    {
+        get => _name;
+        set
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("O nome da categoria não pode ser vazio.");
+            _name = value.Trim();
+        }
+    }
 
     /// <summary>
     /// Optional description providing more details about the category.
@@ -39,10 +54,7 @@ public class Category
     /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is null, empty or whitespace.</exception>
     public Category(string name, string description = "")
     {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("O nome da categoria não pode ser vazio.");
-        
-        Name = name.Trim();
+        Name = name;
         Description = description.Trim();
     }
 }

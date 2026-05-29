@@ -12,9 +12,11 @@ namespace EstoqueManager.Tests
     {
         private readonly string _testDataDir = "data";
         private readonly string _testFilePath = Path.Combine("data", "categories.json");
+        private readonly ILogService _fakeLogService;
 
         public CategoryServiceTests()
         {
+            _fakeLogService = new FakeLogService();
             CleanTestData();
         }
 
@@ -45,7 +47,7 @@ namespace EstoqueManager.Tests
         public async Task CategoryService_AddCategory_ShouldPersistSuccessfully()
         {
             // Arrange
-            var service = new CategoryService();
+            var service = new CategoryService(_fakeLogService);
             var category = new Category("Eletrônicos", "Dispositivos diversos");
 
             // Act
@@ -62,7 +64,7 @@ namespace EstoqueManager.Tests
         public async Task CategoryService_AddDuplicateCategory_ShouldThrow()
         {
             // Arrange
-            var service = new CategoryService();
+            var service = new CategoryService(_fakeLogService);
             var cat1 = new Category("Móveis");
             var cat2 = new Category("móveis");
 
@@ -76,7 +78,7 @@ namespace EstoqueManager.Tests
         public async Task CategoryService_UpdateCategory_ShouldModifyAndPersist()
         {
             // Arrange
-            var service = new CategoryService();
+            var service = new CategoryService(_fakeLogService);
             var cat = new Category("Escritório", "Material de escritório");
             await service.AddAsync(cat);
 
@@ -95,7 +97,7 @@ namespace EstoqueManager.Tests
         public async Task CategoryService_RemoveCategory_ShouldRemoveSuccessfully()
         {
             // Arrange
-            var service = new CategoryService();
+            var service = new CategoryService(_fakeLogService);
             var cat = new Category("Livros");
             await service.AddAsync(cat);
 
@@ -106,6 +108,19 @@ namespace EstoqueManager.Tests
             // Assert
             Assert.True(removed);
             Assert.Empty(list);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("   ")]
+        [InlineData(null)]
+        public void Category_NameSetter_WithInvalidValue_ShouldThrowArgumentException(string? invalidName)
+        {
+            // Arrange
+            var category = new Category("Válida");
+
+            // Act & Assert
+            Assert.Throws<ArgumentException>(() => category.Name = invalidName!);
         }
     }
 }

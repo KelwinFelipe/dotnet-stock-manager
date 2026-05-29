@@ -21,9 +21,11 @@ builder.Services.AddCors(options =>
 });
 
 // Registra os serviços como Singleton, pois eles mantêm estado em memória e acessam arquivo
+builder.Services.AddSingleton<ILogService, LogService>();
+builder.Services.AddSingleton<IStockMovementService, StockMovementService>();
 builder.Services.AddSingleton<IStockService, StockService>();
 builder.Services.AddSingleton<ICategoryService, CategoryService>();
-builder.Services.AddSingleton<ExportService>();
+builder.Services.AddSingleton<IExportService, ExportService>();
 
 var app = builder.Build();
 
@@ -35,9 +37,9 @@ app.UseStaticFiles();
 // Configura o mapeamento de requisições de API
 var api = app.MapGroup("/api/products");
 
-api.MapGet("/", (IStockService stock) =>
+api.MapGet("/", ([FromQuery] bool? includeInactive, IStockService stock) =>
 {
-    var products = stock.List();
+    var products = stock.List(includeInactive ?? false);
     return Results.Ok(products);
 });
 
@@ -47,13 +49,14 @@ api.MapGet("/{id:guid}", (Guid id, IStockService stock) =>
     return product is not null ? Results.Ok(product) : Results.NotFound();
 });
 
-api.MapGet("/search", (string q, IStockService stock) =>
+api.MapGet("/search", (string q, [FromQuery] bool? includeInactive, IStockService stock) =>
 {
     if (string.IsNullOrWhiteSpace(q))
         return Results.BadRequest("Termo de busca não pode ser vazio.");
 
-    var products = stock.List()
-        .Where(p => p.Name.Contains(q, StringComparison.OrdinalIgnoreCase))
+    var products = stock.List(includeInactive ?? false)
+        .Where(p => p.Name.Contains(q, StringComparison.OrdinalIgnoreCase) || 
+                    (p.Description != null && p.Description.Contains(q, StringComparison.OrdinalIgnoreCase)))
         .ToList();
 
     return Results.Ok(products);
@@ -73,7 +76,8 @@ api.MapPost("/", async (ProductInputModel model, IStockService stock) =>
         var product = new Product(model.Name, model.Price, model.Quantity)
         {
             CategoryId = model.CategoryId,
-            Description = model.Description
+            Description = model.Description,
+            MinStockThreshold = model.MinStockThreshold
         };
         await stock.AddAsync(product);
         return Results.Created($"/api/products/{product.Id}", product);
@@ -92,16 +96,31 @@ api.MapPost("/", async (ProductInputModel model, IStockService stock) =>
     }
 });
 
-api.MapPut("/{id:guid}/quantity", async (Guid id, [FromBody] int quantity, IStockService stock) =>
+api.MapPut("/{id:guid}/quantity", async (Guid id, [FromBody] int quantity, [FromQuery] string? reason, IStockService stock) =>
 {
     if (quantity < 0)
         return Results.BadRequest(new { message = "Quantidade não pode ser negativa." });
 
-    var success = await stock.UpdateQuantityAsync(id, quantity);
+    var success = await stock.UpdateQuantityAsync(id, quantity, reason ?? "Ajuste manual");
     if (!success)
         return Results.NotFound();
 
     return Results.Ok();
+});
+
+api.MapPost("/{id:guid}/restore", async (Guid id, IStockService stock) =>
+{
+    var success = await stock.RestoreAsync(id);
+    if (!success)
+        return Results.NotFound(new { message = "Produto não localizado ou já ativo." });
+
+    return Results.Ok();
+});
+
+api.MapGet("/{id:guid}/movements", async (Guid id, IStockMovementService movementService) =>
+{
+    var movements = await movementService.GetMovementsByProductIdAsync(id);
+    return Results.Ok(movements);
 });
 
 api.MapDelete("/{id:guid}", async (Guid id, IStockService stock) =>
@@ -127,7 +146,9 @@ api.MapPut("/{id:guid}", async (Guid id, ProductInputModel model, IStockService 
         var product = new Product(model.Name, model.Price, model.Quantity)
         {
             CategoryId = model.CategoryId,
-            Description = model.Description
+            Description = model.Description,
+            MinStockThreshold = model.MinStockThreshold,
+            IsActive = true // Editing activates it back, or keeps it active
         };
         
         var success = await stock.UpdateProductAsync(id, product);
@@ -150,20 +171,20 @@ api.MapPut("/{id:guid}", async (Guid id, ProductInputModel model, IStockService 
     }
 });
 // Export endpoints
-api.MapGet("/export/xml", async (IStockService stock, ExportService export) =>
+api.MapGet("/export/xml", async (IStockService stock, IExportService export) =>
 {
     var xml = await export.GenerateXmlAsync(stock.List());
     var bytes = Encoding.UTF8.GetBytes(xml);
     return Results.File(bytes, "application/xml", "products.xml");
 });
 
-api.MapGet("/export/csv", async (IStockService stock, ExportService export) =>
+api.MapGet("/export/csv", async (IStockService stock, IExportService export) =>
 {
     var bytes = await export.GenerateCsvAsync(stock.List());
     return Results.File(bytes, "text/csv", "products.csv");
 });
 
-api.MapGet("/export/pdf", async (IStockService stock, ExportService export) =>
+api.MapGet("/export/pdf", async (IStockService stock, IExportService export) =>
 {
     var pdfBytes = await export.GeneratePdfAsync(stock.List());
     return Results.File(pdfBytes, "application/pdf", "products.pdf");
@@ -353,16 +374,39 @@ var dashApi = app.MapGroup("/api/dashboard");
 
 dashApi.MapGet("/stats", (IStockService stock) =>
 {
-    var products = stock.List();
-    var totalItems = products.Count();
+    var products = stock.List(includeInactive: false);
+    var totalItems = products.Count;
     var totalValue = products.Sum(p => p.Price * p.Quantity);
-    var lowStock = products.Count(p => p.Quantity < 10);
+    var lowStock = products.Count(p => p.Quantity < p.MinStockThreshold);
     return Results.Ok(new { TotalItems = totalItems, TotalValue = totalValue, LowStockCount = lowStock });
 });
 
-dashApi.MapGet("/logs", async () =>
+dashApi.MapGet("/category-stats", (IStockService stock, ICategoryService catService) =>
 {
-    var logs = await LogService.ReadLastLogsAsync(30);
+    var products = stock.List(includeInactive: false);
+    var categories = catService.List();
+
+    var stats = products
+        .GroupBy(p => p.CategoryId)
+        .Select(g =>
+        {
+            var category = categories.FirstOrDefault(c => c.Id == g.Key);
+            return new
+            {
+                CategoryId = g.Key,
+                CategoryName = category?.Name ?? "Sem Categoria",
+                ProductCount = g.Count(),
+                TotalValue = g.Sum(p => p.Price * p.Quantity)
+            };
+        })
+        .ToList();
+
+    return Results.Ok(stats);
+});
+
+dashApi.MapGet("/logs", async (ILogService logService) =>
+{
+    var logs = await logService.ReadLastLogsAsync(30);
     return Results.Ok(logs);
 });
 
@@ -387,6 +431,9 @@ public class ProductInputModel
     public string? Description { get; set; }
     
     public Guid? CategoryId { get; set; }
+
+    [Range(0, int.MaxValue, ErrorMessage = "O limite mínimo de estoque não pode ser negativo.")]
+    public int MinStockThreshold { get; set; } = 10;
 }
 
 public class CategoryInputModel

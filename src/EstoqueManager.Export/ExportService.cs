@@ -10,7 +10,7 @@ using EstoqueManager.Core;
 
 namespace EstoqueManager.Export
 {
-    public class ExportService
+    public class ExportService : IExportService
     {
         public ExportService()
         {

@@ -119,7 +119,7 @@ Acesse em: `http://localhost:8080`
 dotnet test
 ```
 
-- 12 testes unitários cobrindo entidades de domínio (`Product`, `Category`) e serviços (`StockService`, `LogService`)
+- 16 testes unitários cobrindo entidades de domínio (`Product`, `Category`) e serviços (`StockService`, `LogService`, `StockMovementService`)
 
 ---
 
@@ -128,13 +128,15 @@ dotnet test
 ### Produtos `/api/products`
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/` | Listar todos os produtos |
+| `GET` | `/` | Listar todos os produtos (opcional `includeInactive=true` query parameter) |
 | `GET` | `/{id}` | Buscar produto por ID |
-| `GET` | `/search?q={termo}` | Buscar por nome |
+| `GET` | `/search?q={termo}` | Buscar por nome ou descrição |
 | `POST` | `/` | Cadastrar produto |
 | `PUT` | `/{id}` | Atualizar produto |
-| `PUT` | `/{id}/quantity` | Atualizar quantidade |
-| `DELETE` | `/{id}` | Remover produto |
+| `PUT` | `/{id}/quantity` | Atualizar quantidade com motivo opcional |
+| `POST` | `/{id}/restore` | Restaurar produto inativo (lixeira) |
+| `GET` | `/{id}/movements` | Buscar histórico de movimentações de estoque |
+| `DELETE` | `/{id}` | Desativar produto (Soft Delete) |
 | `GET` | `/export/pdf` | Exportar PDF |
 | `GET` | `/export/csv` | Exportar CSV |
 | `GET` | `/export/xml` | Exportar XML |
@@ -150,5 +152,7 @@ dotnet test
 ### Dashboard `/api/dashboard`
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/stats` | KPIs (total, valor, estoque baixo) |
+| `GET` | `/stats` | KPIs (total, valor, estoque baixo com limite customizado) |
+| `GET` | `/category-stats` | Estatísticas de produtos e valor total agrupados por categoria |
 | `GET` | `/logs` | Últimas 30 entradas de auditoria |
+

@@ -14,8 +14,11 @@ const formatDate = (dateString) => {
 
 // API Service
 class ApiService {
-    static async getProducts(searchQuery = '') {
-        const url = searchQuery ? `${API_BASE_URL}/search?q=${encodeURIComponent(searchQuery)}` : API_BASE_URL;
+    static async getProducts(searchQuery = '', includeInactive = false) {
+        const inactiveParam = includeInactive ? 'includeInactive=true' : 'includeInactive=false';
+        const url = searchQuery 
+            ? `${API_BASE_URL}/search?q=${encodeURIComponent(searchQuery)}&${inactiveParam}` 
+            : `${API_BASE_URL}?${inactiveParam}`;
         const response = await fetch(url);
         if (!response.ok) throw new Error('Falha ao buscar produtos');
         return response.json();
@@ -49,14 +52,28 @@ class ApiService {
         return true;
     }
 
-    static async updateQuantity(id, quantity) {
-        const response = await fetch(`${API_BASE_URL}/${id}/quantity`, {
+    static async updateQuantity(id, quantity, reason = 'Ajuste manual') {
+        const response = await fetch(`${API_BASE_URL}/${id}/quantity?reason=${encodeURIComponent(reason)}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(quantity)
         });
         if (!response.ok) throw new Error('Falha ao atualizar quantidade');
         return true;
+    }
+
+    static async restoreProduct(id) {
+        const response = await fetch(`${API_BASE_URL}/${id}/restore`, {
+            method: 'POST'
+        });
+        if (!response.ok) throw new Error('Falha ao restaurar produto');
+        return true;
+    }
+
+    static async getProductMovements(id) {
+        const response = await fetch(`${API_BASE_URL}/${id}/movements`);
+        if (!response.ok) throw new Error('Falha ao obter movimentações');
+        return response.json();
     }
 
     static async deleteProduct(id) {
@@ -150,6 +167,7 @@ class UIManager {
         // Search
         this.searchInput = document.getElementById('search-input');
         this.stockAlertBanner = document.getElementById('stock-alert-banner');
+        this.showInactiveCheckbox = document.getElementById('show-inactive-checkbox');
         
         // Modals
         this.productModal = document.getElementById('product-modal');
@@ -191,6 +209,12 @@ class UIManager {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => this.loadProducts(e.target.value), 300);
         });
+
+        if (this.showInactiveCheckbox) {
+            this.showInactiveCheckbox.addEventListener('change', () => {
+                this.loadProducts(this.searchInput.value);
+            });
+        }
 
         // Clique na linha para Detalhes
         if (this.tableBody) {
@@ -237,6 +261,7 @@ class UIManager {
             document.getElementById('modal-title').textContent = 'Cadastrar Produto';
             document.getElementById('edit-product-id').value = '';
             this.productForm.reset();
+            document.getElementById('product-threshold').value = 10;
             this.productModal.classList.remove('hidden');
         });
 
@@ -339,6 +364,7 @@ class UIManager {
                 name: document.getElementById('product-name').value,
                 price: parseFloat(document.getElementById('product-price').value),
                 quantity: parseInt(document.getElementById('product-quantity').value, 10),
+                minStockThreshold: parseInt(document.getElementById('product-threshold').value, 10),
                 categoryId: categoryId || null,
                 description: document.getElementById('product-description').value
             };
@@ -409,9 +435,10 @@ class UIManager {
             e.preventDefault();
             const id = document.getElementById('edit-quantity-id').value;
             const quantity = parseInt(document.getElementById('new-quantity').value, 10);
+            const reason = document.getElementById('quantity-reason').value.trim() || 'Ajuste manual';
             
             try {
-                await ApiService.updateQuantity(id, quantity);
+                await ApiService.updateQuantity(id, quantity, reason);
                 this.showToast('Quantidade atualizada com sucesso!', 'success');
                 this.quantityModal.classList.add('hidden');
                 this.loadProducts(this.searchInput.value);
@@ -457,6 +484,10 @@ class UIManager {
                 formattedLog = log.replace('ESTOQUE ATUALIZADO', '<span style="color: var(--warning); font-weight: bold;">ESTOQUE ATUALIZADO</span>');
             } else if (log.includes('PRODUTO ATUALIZADO')) {
                 formattedLog = log.replace('PRODUTO ATUALIZADO', '<span style="color: var(--accent); font-weight: bold;">PRODUTO ATUALIZADO</span>');
+            } else if (log.includes('PRODUTO DESATIVADO')) {
+                formattedLog = log.replace('PRODUTO DESATIVADO', '<span style="color: var(--danger); font-weight: bold;">PRODUTO DESATIVADO</span>');
+            } else if (log.includes('PRODUTO RESTAURADO')) {
+                formattedLog = log.replace('PRODUTO RESTAURADO', '<span style="color: var(--success); font-weight: bold;">PRODUTO RESTAURADO</span>');
             } else if (log.includes('PRODUTO REMOVIDO')) {
                 formattedLog = log.replace('PRODUTO REMOVIDO', '<span style="color: var(--danger); font-weight: bold;">PRODUTO REMOVIDO</span>');
             } else if (log.includes('CATEGORIA ADICIONADA')) {
@@ -549,7 +580,8 @@ class UIManager {
     async loadProducts(searchQuery = '') {
         this.showLoading(true);
         try {
-            this.allProducts = await ApiService.getProducts(searchQuery);
+            const includeInactive = this.showInactiveCheckbox ? this.showInactiveCheckbox.checked : false;
+            this.allProducts = await ApiService.getProducts(searchQuery, includeInactive);
             this.applyFilter();
         } catch (error) {
             this.showToast('Erro ao carregar produtos', 'error');
@@ -593,7 +625,7 @@ class UIManager {
             // Fallback em memória
             const totalItems = this.products.length;
             const totalValue = this.products.reduce((acc, p) => acc + (p.price * p.quantity), 0);
-            const lowStock = this.products.filter(p => p.quantity < 10).length;
+            const lowStock = this.products.filter(p => p.quantity < p.minStockThreshold).length;
             this.animateCounter(this.kpiTotalItems, totalItems, 700);
             this.animateCounter(this.kpiTotalValue, totalValue, 700, formatCurrency);
             this.animateCounter(this.kpiLowStock, lowStock, 700);
@@ -713,25 +745,44 @@ class UIManager {
                 const tr = document.createElement('tr');
                 tr.setAttribute('data-id', product.id);
                 tr.style.cursor = 'pointer';
+                if (!product.isActive) {
+                    tr.classList.add('inactive-row');
+                }
                 
                 // Badge de estoque
                 let stockBadge = '';
                 if (product.quantity === 0) stockBadge = '<span class="badge badge-out">Sem Estoque</span>';
-                else if (product.quantity < 10) stockBadge = '<span class="badge badge-low">Baixo</span>';
+                else if (product.quantity < product.minStockThreshold) stockBadge = `<span class="badge badge-low">Baixo (&lt; ${product.minStockThreshold})</span>`;
 
                 // Barra de saúde do estoque
                 const stockPercent = Math.min(100, (product.quantity / 100) * 100);
                 const stockColor = product.quantity === 0
                     ? 'var(--danger)'
-                    : product.quantity < 10
+                    : product.quantity < product.minStockThreshold
                         ? 'var(--warning)'
                         : 'var(--success)';
                 
                 const catName = product.categoryId ? (this.categories.find(c => c.id === product.categoryId)?.name || '-') : '-';
+                const statusBadge = product.isActive 
+                    ? '<span class="badge badge-active">Ativo</span>' 
+                    : '<span class="badge badge-inactive">Inativo</span>';
                 const dataDisplay = product.updatedAt ? `<div style="font-size:0.8rem;color:var(--text-muted)">Atualizado:<br>${formatDate(product.updatedAt)}</div>` : `<div style="font-size:0.8rem;color:var(--text-muted)">Criado:<br>${formatDate(product.createdAt)}</div>`;
 
+                let actionsHtml = '';
+                if (product.isActive) {
+                    actionsHtml = `
+                        <button class="btn-icon edit" onclick="app.openEditProductModal('${product.id}')" title="Editar Produto">✏️</button>
+                        <button class="btn-icon edit" onclick="app.openQuantityModal('${product.id}')" title="Atualizar Estoque rápido">📦</button>
+                        <button class="btn-icon delete" onclick="app.deleteProduct('${product.id}')" title="Desativar Produto">🗑️</button>
+                    `;
+                } else {
+                    actionsHtml = `
+                        <button class="btn-icon edit" style="color: var(--success);" onclick="app.restoreProduct('${product.id}')" title="Restaurar Produto">🔄</button>
+                    `;
+                }
+
                 tr.innerHTML = `
-                    <td style="font-size: 0.8rem; color: var(--text-muted)">${product.id.split('-')[0]}</td>
+                    <td style="font-size: 0.8rem; color: var(--text-muted)">${product.id.split('-')[0]} ${statusBadge}</td>
                     <td class="highlight-text">${product.name}</td>
                     <td>${catName}</td>
                     <td>${formatCurrency(product.price)}</td>
@@ -741,9 +792,7 @@ class UIManager {
                     </td>
                     <td>${dataDisplay}</td>
                     <td class="action-cell">
-                        <button class="btn-icon edit" onclick="app.openEditProductModal('${product.id}')" title="Editar Produto">✏️</button>
-                        <button class="btn-icon edit" onclick="app.openQuantityModal('${product.id}')" title="Atualizar Estoque rápido">📦</button>
-                        <button class="btn-icon delete" onclick="app.deleteProduct('${product.id}')" title="Remover Produto">🗑️</button>
+                        ${actionsHtml}
                     </td>
                 `;
                 this.tableBody.appendChild(tr);
@@ -751,7 +800,7 @@ class UIManager {
         }
     }
 
-    openDetailModal(id) {
+    async openDetailModal(id) {
         const product = this.products.find(p => p.id === id);
         if (product) {
             const catName = product.categoryId ? (this.categories.find(c => c.id === product.categoryId)?.name || 'Sem Categoria') : 'Sem Categoria';
@@ -760,9 +809,40 @@ class UIManager {
             document.getElementById('detail-price').textContent = formatCurrency(product.price);
             document.getElementById('detail-quantity').textContent = product.quantity;
             document.getElementById('detail-category').textContent = catName;
+            document.getElementById('detail-threshold').textContent = product.minStockThreshold || 10;
             document.getElementById('detail-description').textContent = product.description || 'Nenhuma descrição informada.';
             document.getElementById('detail-created').textContent = formatDate(product.createdAt);
             document.getElementById('detail-updated').textContent = formatDate(product.updatedAt);
+
+            const movementsContainer = document.getElementById('detail-movements');
+            movementsContainer.innerHTML = '<div style="color: var(--text-muted);">Carregando histórico...</div>';
+
+            try {
+                const movements = await ApiService.getProductMovements(product.id);
+                movementsContainer.innerHTML = '';
+                if (movements.length === 0) {
+                    movementsContainer.innerHTML = '<div style="color: var(--text-muted);">Nenhuma movimentação registrada.</div>';
+                } else {
+                    movements.forEach(m => {
+                        const div = document.createElement('div');
+                        div.style.padding = '4px 0';
+                        div.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                        const dateStr = formatDate(m.createdAt);
+                        const deltaSign = m.quantityDelta >= 0 ? `+${m.quantityDelta}` : `${m.quantityDelta}`;
+                        const deltaColor = m.quantityDelta >= 0 ? 'var(--success)' : 'var(--danger)';
+                        
+                        div.innerHTML = `<span style="color: var(--text-muted);">${dateStr}</span> | ` +
+                            `<span style="color: ${deltaColor}; font-weight: bold;">${m.type} (${deltaSign})</span> | ` +
+                            `Estoque: ${m.previousQuantity} -> ${m.newQuantity} | ` +
+                            `<span style="color: var(--text-highlight);">${m.reason || '-'}</span>`;
+                        movementsContainer.appendChild(div);
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+                movementsContainer.innerHTML = '<div style="color: var(--danger);">Falha ao carregar histórico.</div>';
+            }
+
             this.detailModal.classList.remove('hidden');
         }
     }
@@ -775,6 +855,7 @@ class UIManager {
             document.getElementById('product-name').value = product.name;
             document.getElementById('product-price').value = product.price;
             document.getElementById('product-quantity').value = product.quantity;
+            document.getElementById('product-threshold').value = product.minStockThreshold || 10;
             document.getElementById('product-description').value = product.description || '';
             this.productCategorySelect.value = product.categoryId || '';
             this.productModal.classList.remove('hidden');
@@ -787,6 +868,7 @@ class UIManager {
             document.getElementById('edit-quantity-id').value = product.id;
             document.getElementById('edit-quantity-name').textContent = product.name;
             document.getElementById('new-quantity').value = product.quantity;
+            document.getElementById('quantity-reason').value = 'Ajuste manual';
             this.quantityModal.classList.remove('hidden');
         }
     }
@@ -795,18 +877,29 @@ class UIManager {
         const product = this.products.find(p => p.id === id);
         if (!product) return;
         const confirmed = await this.showConfirmModal(
-            '🗑️ Remover Produto',
-            `Deseja realmente remover o produto <strong>${product.name}</strong>?<br><span style="font-size:0.85rem">Esta ação não pode ser desfeita.</span>`
+            '🗑️ Desativar Produto',
+            `Deseja realmente desativar o produto <strong>${product.name}</strong>?<br><span style="font-size:0.85rem">Ele será enviado para a lixeira (Inativos).</span>`
         );
         if (confirmed) {
             try {
                 await ApiService.deleteProduct(id);
-                this.showToast('Produto removido com sucesso!', 'success');
+                this.showToast('Produto desativado com sucesso!', 'success');
                 this.loadProducts(this.searchInput.value);
                 this.loadLogs();
             } catch (error) {
                 this.showToast(error.message, 'error');
             }
+        }
+    }
+
+    async restoreProduct(id) {
+        try {
+            await ApiService.restoreProduct(id);
+            this.showToast('Produto restaurado com sucesso!', 'success');
+            this.loadProducts(this.searchInput.value);
+            this.loadLogs();
+        } catch (error) {
+            this.showToast(error.message, 'error');
         }
     }
 

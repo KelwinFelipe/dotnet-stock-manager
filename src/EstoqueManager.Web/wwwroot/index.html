@@ -56,14 +56,18 @@
 
         <!-- Search & Filter -->
         <section class="controls" style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
-            <div class="search-box" style="flex: 1; min-width: 250px;">
-                <input type="text" id="search-input" placeholder="Buscar produto por nome...">
+            <div class="search-box" style="flex: 2; min-width: 250px;">
+                <input type="text" id="search-input" placeholder="Buscar produto por nome ou descrição...">
                 <span class="search-icon">🔍</span>
             </div>
-            <div class="filter-box" style="flex: 1; max-width: 300px; min-width: 200px;">
+            <div class="filter-box" style="flex: 1; max-width: 200px; min-width: 150px;">
                 <select id="category-filter" class="form-control" style="width: 100%; padding: 12px 16px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: var(--radius-pill); color: var(--text-main);">
                     <option value="">Todas as Categorias</option>
                 </select>
+            </div>
+            <div class="show-inactive-box" style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text-main);">
+                <input type="checkbox" id="show-inactive-checkbox" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent);">
+                <label for="show-inactive-checkbox" style="cursor: pointer; user-select: none;">Ver Inativos (Lixeira)</label>
             </div>
             <div class="page-size-box" style="flex: 0; min-width: 150px;">
                 <select id="page-size-select" class="form-control" style="width: 100%; padding: 12px 16px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: var(--radius-pill); color: var(--text-main);">
@@ -153,6 +157,10 @@
                         <label for="product-quantity">Quantidade</label>
                         <input type="number" id="product-quantity" min="0" required>
                     </div>
+                    <div class="form-group">
+                        <label for="product-threshold">Alerta Mínimo</label>
+                        <input type="number" id="product-threshold" min="0" value="10" required>
+                    </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group" style="flex: 2;">
@@ -181,6 +189,10 @@
                 <div class="form-group">
                     <label for="new-quantity">Nova Quantidade</label>
                     <input type="number" id="new-quantity" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="quantity-reason">Motivo do Ajuste</label>
+                    <input type="text" id="quantity-reason" placeholder="Ex: Entrada de fornecedor, quebra..." required value="Ajuste manual">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-secondary" id="btn-cancel-quantity-modal">Cancelar</button>
@@ -280,13 +292,25 @@
                         <p id="detail-quantity" style="font-size: 1.1rem; font-weight: 600;"></p>
                     </div>
                 </div>
-                <div>
-                    <span style="font-size: 0.85rem; color: var(--text-muted);">Categoria</span>
-                    <p id="detail-category" style="font-weight: 500;"></p>
+                <div style="display: flex; gap: 24px;">
+                    <div style="flex: 1;">
+                        <span style="font-size: 0.85rem; color: var(--text-muted);">Categoria</span>
+                        <p id="detail-category" style="font-weight: 500;"></p>
+                    </div>
+                    <div style="flex: 1;">
+                        <span style="font-size: 0.85rem; color: var(--text-muted);">Limite de Alerta</span>
+                        <p id="detail-threshold" style="font-weight: 500;"></p>
+                    </div>
                 </div>
                 <div>
                     <span style="font-size: 0.85rem; color: var(--text-muted);">Descrição</span>
                     <p id="detail-description" style="white-space: pre-wrap; background: rgba(0,0,0,0.15); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color); font-size: 0.95rem; min-height: 60px; color: var(--text-main);"></p>
+                </div>
+                <div>
+                    <span style="font-size: 0.85rem; color: var(--text-muted);">Histórico de Movimentações</span>
+                    <div id="detail-movements" style="max-height: 120px; overflow-y: auto; font-family: monospace; font-size: 0.8rem; padding: 8px 12px; background: rgba(0,0,0,0.20); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 6px; margin-top: 4px;">
+                        <!-- Movimentações injetadas por JS -->
+                    </div>
                 </div>
                 <div style="display: flex; gap: 24px; font-size: 0.8rem; color: var(--text-muted);">
                     <div>

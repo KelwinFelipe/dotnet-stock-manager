@@ -75,6 +75,28 @@ public class Product
     /// </summary>
     public DateTime? UpdatedAt { get; set; }
 
+    private int _minStockThreshold = 10;
+
+    /// <summary>
+    /// Limite mínimo de estoque customizado para alertas.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">Lançada caso o valor seja negativo.</exception>
+    public int MinStockThreshold
+    {
+        get => _minStockThreshold;
+        set
+        {
+            if (value < 0)
+                throw new ArgumentOutOfRangeException(nameof(value), "O limite mínimo de estoque não pode ser negativo.");
+            _minStockThreshold = value;
+        }
+    }
+
+    /// <summary>
+    /// Define se o produto está ativo (soft delete).
+    /// </summary>
+    public bool IsActive { get; set; } = true;
+
     /// <summary>
     /// Identificador da categoria associada ao produto (pode ser <c>null</c> quando não houver categoria).
     /// </summary>
